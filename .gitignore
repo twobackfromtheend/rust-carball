@@ -1,4 +1,4 @@
-target/
-python/
-outputs/
-assets/
+/target/
+/python/
+/outputs/
+/assets/

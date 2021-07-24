@@ -2,7 +2,7 @@
 extern crate log;
 
 use carball::analysis::analyze;
-use carball::outputs::{generate_outputs, write_outputs, DataFrameOutputFormat};
+use carball::outputs::{write_outputs, DataFrameOutputFormat, ParseOutput};
 use carball::CarballParser;
 
 use simplelog::*;
@@ -41,8 +41,9 @@ fn main() {
     // let frame_parser = FrameParser::from_replay(replay).expect("failed to process");
     // frame_parser.process_replay().expect("failed to process");
 
-    let parse_output = generate_outputs(&carball_parser.replay, &carball_parser.frame_parser)
-        .expect("Failed to generate outputs.");
+    let parse_output =
+        ParseOutput::generate_from(&carball_parser.replay, &carball_parser.frame_parser)
+            .expect("Failed to generate outputs.");
     write_outputs(&parse_output, DataFrameOutputFormat::Csv).expect("Failed to write outputs.");
 
     // analyze(&frame_parser, &parse_output);
