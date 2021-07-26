@@ -1,14 +1,13 @@
-use crate::actor_handlers::TimeSeriesBallData;
-use crate::actor_handlers::TimeSeriesCarData;
-use crate::analysis::predict_ball_bounce;
-use crate::analysis::BallPredictionError;
+use crate::actor_handlers::{TimeSeriesBallData, TimeSeriesCarData};
+use crate::analysis::{predict_ball_bounce, BallPredictionError};
 use crate::frame_parser::FrameParser;
-use crate::outputs::ParseOutput;
+use crate::outputs::MetadataOutput;
 use boxcars::ActorId;
 use log::{error, warn};
 use serde::Serialize;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use thiserror::Error;
 
 static MAX_HIT_CAR_DISTANCE: f32 = 400.0;
 
@@ -38,7 +37,7 @@ pub struct HitDebugInfo {
 impl Hit {
     pub fn find_hits(
         frame_parser: &FrameParser,
-        parse_output: &ParseOutput,
+        metadata: &MetadataOutput,
     ) -> Result<Vec<Hit>, HitDetectionError> {
         let time_series_replay_data = frame_parser.time_series_replay_data.borrow();
         let time_series_ball_data = frame_parser.time_series_ball_data.borrow();
@@ -46,7 +45,7 @@ impl Hit {
 
         let mut blue_player_actor_ids = vec![];
         let mut orange_player_actor_ids = vec![];
-        for player in parse_output.metadata.players.iter() {
+        for player in metadata.players.iter() {
             if let Some(player_is_orange) = player.is_orange {
                 match player_is_orange {
                     true => orange_player_actor_ids.push(player._actor_id),
@@ -97,7 +96,7 @@ impl Hit {
                                 }
                                 let delta = time_series_replay_data
                                     .get(&frame_number)
-                                    .ok_or(HitDetectionError::MissingData)?
+                                    .ok_or_else(|| HitDetectionError::MissingDelta(frame_number))?
                                     .delta;
                                 {
                                     if predict_ball_bounce(previous_frame_ball_data_value, delta)
@@ -292,8 +291,10 @@ fn unwrap_ang_vel(ball_data: &TimeSeriesBallData) -> Option<(f32, f32, f32)> {
     ))
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum HitDetectionError {
+    #[error("ball prediction failed: {0}")]
     BallPredictionError(BallPredictionError),
-    MissingData,
+    #[error("missing delta from parsed replay on frame {0}")]
+    MissingDelta(usize),
 }

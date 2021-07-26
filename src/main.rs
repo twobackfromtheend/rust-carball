@@ -1,10 +1,11 @@
 #[macro_use]
 extern crate log;
 
-use carball::analysis::analyze;
-use carball::outputs::{write_outputs, DataFrameOutputFormat, ParseOutput};
+use carball::analysis::CarballAnalyzer;
+use carball::outputs::{
+    DataFrameOutputFormat, DataFramesOutput, MetadataOutput, ParseOutputWriter,
+};
 use carball::CarballParser;
-
 use simplelog::*;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -32,21 +33,26 @@ fn main() {
     let opt = Opt::from_args();
     dbg!(&opt);
 
-    // let file_path = PathBuf::from("assets\\replays\\ranked-3s.replay");
-    // let file_path = PathBuf::from("assets\\replays\\201E87CC11EBE9966E057CBD63E6D63F.replay");
-    // let file_path = PathBuf::from("assets\\replays\\soccar-lan.replay");
-    let carball_parser = CarballParser::parse_file(opt.input).expect("failed to parse");
-    // let replay = read_file(&opt.input).expect("failed to parse");
+    let carball_parser = CarballParser::parse_file(opt.input, true).expect("Failed to parse.");
 
-    // let frame_parser = FrameParser::from_replay(replay).expect("failed to process");
-    // frame_parser.process_replay().expect("failed to process");
+    let metadata =
+        MetadataOutput::generate_from(&carball_parser.replay, &carball_parser.frame_parser);
+    let data_frames = if opt.skip_data_frames {
+        Some(
+            DataFramesOutput::generate_from(&carball_parser.frame_parser)
+                .expect("Failed to generate data frames."),
+        )
+    } else {
+        None
+    };
+    let parse_output_writer = ParseOutputWriter::new(opt.output_dir, opt.data_frame_output_format);
+    parse_output_writer
+        .write_outputs(Some(&metadata), data_frames.as_ref())
+        .expect("Failed to write outputs.");
 
-    let parse_output =
-        ParseOutput::generate_from(&carball_parser.replay, &carball_parser.frame_parser)
-            .expect("Failed to generate outputs.");
-    write_outputs(&parse_output, DataFrameOutputFormat::Csv).expect("Failed to write outputs.");
-
-    // analyze(&frame_parser, &parse_output);
+    if !opt.skip_data_frames & !opt.skip_analysis {
+        CarballAnalyzer::analyze(&carball_parser, &metadata).expect("Failed to analyze.");
+    }
 
     info!("fin");
 }

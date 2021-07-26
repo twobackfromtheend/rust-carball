@@ -1,7 +1,6 @@
 pub mod ball;
 pub mod base;
 pub mod boost;
-pub mod boost_pickup;
 pub mod car;
 pub mod factory;
 pub mod game_event;
@@ -13,7 +12,6 @@ pub mod utils;
 pub use self::ball::*;
 pub use self::base::*;
 pub use self::boost::*;
-pub use self::boost_pickup::*;
 pub use self::car::*;
 pub use self::factory::*;
 pub use self::game_event::*;

@@ -28,6 +28,7 @@ impl From<FrameParserError> for CarballError {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct CarballParser {
     pub file_path: PathBuf,
     pub replay: Replay,
@@ -35,10 +36,10 @@ pub struct CarballParser {
 }
 
 impl CarballParser {
-    pub fn parse_file(file_path: PathBuf) -> Result<Self, CarballError> {
+    pub fn parse_file(file_path: PathBuf, show_progress: bool) -> Result<Self, CarballError> {
         let replay = read_file(&file_path)?;
 
-        let frame_parser = FrameParser::from_replay(&replay)?;
+        let frame_parser = FrameParser::from_replay(&replay, show_progress)?;
 
         Ok(Self {
             file_path,
@@ -46,6 +47,8 @@ impl CarballParser {
             frame_parser,
         })
     }
+
+    pub fn write_outputs(self) {}
 }
 
 pub fn read_file(file_path: &Path) -> Result<Replay, CarballError> {

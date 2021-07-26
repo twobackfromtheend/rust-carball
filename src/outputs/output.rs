@@ -5,9 +5,7 @@ use crate::actor_handlers::{
 use crate::cleaner::BoostPickupKind;
 use crate::frame_parser::{FrameParser, TimeSeriesReplayData};
 use crate::outputs::{Demo, Game, Player, Team};
-// use crate::CarballError;
-use boxcars::Attribute;
-use boxcars::Replay;
+use boxcars::{Attribute, Replay};
 use log::error;
 use polars::error::PolarsError;
 use polars::prelude::{
@@ -27,35 +25,30 @@ pub struct MetadataOutput {
     pub demos: Vec<Demo>,
 }
 
+impl MetadataOutput {
+    pub fn generate_from(replay: &Replay, frame_parser: &FrameParser) -> Self {
+        Self {
+            game: Game::from(replay),
+            teams: Team::from_frame_parser(frame_parser),
+            players: Player::from_frame_parser(frame_parser),
+            demos: Demo::from_frame_parser(frame_parser),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
-pub struct DataFrameOutput {
+pub struct DataFramesOutput {
     pub game: DataFrame,
     pub ball: DataFrame,
     pub players: HashMap<i32, DataFrame>,
 }
 
-pub struct ParseOutput {
-    pub metadata: MetadataOutput,
-    pub data_frames: DataFrameOutput,
-}
-
-impl ParseOutput {
-    pub fn generate_from(replay: &Replay, frame_parser: &FrameParser) -> Result<Self, OutputError> {
-        // Metadata
-        let metadata = MetadataOutput {
-            game: Game::from(replay),
-            teams: Team::from_frame_parser(frame_parser),
-            players: Player::from_frame_parser(frame_parser),
-            demos: Demo::from_frame_parser(frame_parser),
-        };
-
-        // DataFrames
+impl DataFramesOutput {
+    pub fn generate_from(frame_parser: &FrameParser) -> Result<Self, OutputError> {
         let frame_count = frame_parser.frame_count;
         let players_actor = frame_parser.players_actor.borrow();
         let players_time_series_car_data = frame_parser.players_time_series_car_data.borrow();
         let players_time_series_player_data = frame_parser.players_time_series_player_data.borrow();
-        let players_time_series_boost_pickup_data_raw =
-            frame_parser.players_time_series_boost_pickup_data.borrow();
 
         let cleaned_data = frame_parser
             .cleaned_data
@@ -82,21 +75,14 @@ impl ParseOutput {
                             if let Some(time_series_boost_pickup_data) =
                                 players_time_series_boost_pickup_data.get(actor_id)
                             {
-                                if let Some(time_series_boost_pickup_data_raw) =
-                                    players_time_series_boost_pickup_data_raw.get(actor_id)
-                                {
-                                    let player_df = create_player_df(
-                                        time_series_car_data,
-                                        time_series_player_data,
-                                        time_series_boost_data,
-                                        time_series_boost_pickup_data,
-                                        time_series_boost_pickup_data_raw,
-                                        frame_count,
-                                    )?;
-                                    player_dfs.insert(actor_id.0, player_df);
-                                } else {
-                                    error!("Failed to write output for {} due to missing time-series raw boost pickup data.", player_name);
-                                };
+                                let player_df = create_player_df(
+                                    time_series_car_data,
+                                    time_series_player_data,
+                                    time_series_boost_data,
+                                    time_series_boost_pickup_data,
+                                    frame_count,
+                                )?;
+                                player_dfs.insert(actor_id.0, player_df);
                             } else {
                                 error!("Failed to write output for {} due to missing time-series boost pickup data.", player_name);
                             };
@@ -136,12 +122,9 @@ impl ParseOutput {
         )?;
 
         Ok(Self {
-            metadata,
-            data_frames: DataFrameOutput {
-                game: game_df,
-                ball: ball_df,
-                players: player_dfs,
-            },
+            game: game_df,
+            ball: ball_df,
+            players: player_dfs,
         })
     }
 }
@@ -151,7 +134,6 @@ fn create_player_df(
     time_series_player_data: &HashMap<usize, TimeSeriesPlayerData>,
     time_series_boost_data: &HashMap<usize, TimeSeriesBoostData>,
     time_series_boost_pickup_data: &HashMap<usize, Option<BoostPickupKind>>,
-    time_series_boost_pickup_data_raw: &HashMap<usize, bool>,
     frame_count: usize,
 ) -> Result<DataFrame, OutputError> {
     // Car data
@@ -187,7 +169,6 @@ fn create_player_df(
 
     // Boost pickup data
     let mut boost_pickup: Vec<Option<u8>> = vec![None; frame_count];
-    let mut boost_pickup_raw: Vec<Option<bool>> = vec![None; frame_count];
 
     for (frame_number, data) in time_series_car_data.iter() {
         is_sleeping[*frame_number] = data.is_sleeping;
@@ -228,10 +209,6 @@ fn create_player_df(
         };
     }
 
-    for (frame_number, data) in time_series_boost_pickup_data_raw.iter() {
-        boost_pickup_raw[*frame_number] = Some(*data);
-    }
-
     DataFrame::new(vec![
         BooleanChunked::new_from_opt_slice("is_sleeping", &is_sleeping).into_series(),
         Float32Chunked::new_from_opt_slice("pos_x", &pos_x).into_series(),
@@ -259,7 +236,6 @@ fn create_player_df(
         BooleanChunked::new_from_opt_slice("boost_is_active", &boost_is_active).into_series(),
         Float32Chunked::new_from_opt_slice("boost_amount", &boost_amount).into_series(),
         UInt8Chunked::new_from_opt_slice("boost_pickup", &boost_pickup).into_series(),
-        BooleanChunked::new_from_opt_slice("boost_pickup_raw", &boost_pickup_raw).into_series(),
     ])
     .map_err(OutputError::CreateDataFrameError)
 }
@@ -361,12 +337,8 @@ fn create_game_df(
 
 #[derive(Debug, Error)]
 pub enum OutputError {
-    #[error("cleaned_data missing from FrameParser")]
+    #[error("FrameParser missing cleaned_data (check if clean_up method has been called)")]
     MissingCleanedData,
-    #[error("failed to create metadata file: {0}")]
-    CreateMetadataFileError(std::io::Error),
-    #[error("failed to create dataframe: {0}")]
+    #[error("Failed to create DataFrame: {0}")]
     CreateDataFrameError(PolarsError),
-    #[error("failed to write dataframe: {0}")]
-    WriteDataFrameError(PolarsError),
 }

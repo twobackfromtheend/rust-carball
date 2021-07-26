@@ -1,14 +1,15 @@
 use crate::actor_handlers::{
-    print_player_attributes, ActorHandler, ActorHandlerFactory, DemoData, TeamData,
-    TimeSeriesBallData, TimeSeriesBoostData, TimeSeriesCarData, TimeSeriesGameEventData,
-    TimeSeriesPlayerData,
+    ActorHandler, ActorHandlerFactory, DemoData, TeamData, TimeSeriesBallData, TimeSeriesBoostData,
+    TimeSeriesCarData, TimeSeriesGameEventData, TimeSeriesPlayerData,
 };
 use crate::cleaner::{BoostPickupKind, BoostPickupKindCalculationError};
 use boxcars::{ActorId, Attribute, NewActor, Replay, UpdatedAttribute};
 use indicatif::ProgressBar;
+use indicatif::ProgressIterator;
 use log::{info, warn};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::iter::Iterator;
 use thiserror::Error;
 
 #[derive(Debug, Clone)]
@@ -29,16 +30,15 @@ pub struct FrameParser {
         RefCell<HashMap<ActorId, HashMap<usize, TimeSeriesPlayerData>>>,
     pub players_time_series_boost_data:
         RefCell<HashMap<ActorId, HashMap<usize, TimeSeriesBoostData>>>,
-    pub players_time_series_boost_pickup_data: RefCell<HashMap<ActorId, HashMap<usize, bool>>>,
     pub demos_data: RefCell<Vec<DemoData>>,
 
     pub cleaned_data: Option<CleanedData>,
 }
 
 impl FrameParser {
-    pub fn from_replay(replay: &Replay) -> Result<Self, FrameParserError> {
+    pub fn from_replay(replay: &Replay, show_progress: bool) -> Result<Self, FrameParserError> {
         let mut frame_parser = Self::new(replay);
-        frame_parser.process_replay(replay)?;
+        frame_parser.process_replay(replay, show_progress)?;
         frame_parser
             .clean_up()
             .map_err(FrameParserError::CleanUpError)?;
@@ -66,7 +66,6 @@ impl FrameParser {
                     players_time_series_car_data: RefCell::new(HashMap::new()),
                     players_time_series_player_data: RefCell::new(HashMap::new()),
                     players_time_series_boost_data: RefCell::new(HashMap::new()),
-                    players_time_series_boost_pickup_data: RefCell::new(HashMap::new()),
                     demos_data: RefCell::new(vec![]),
 
                     cleaned_data: None,
@@ -78,7 +77,11 @@ impl FrameParser {
         }
     }
 
-    pub fn process_replay(&self, replay: &Replay) -> Result<(), FrameParserError> {
+    pub fn process_replay(
+        &self,
+        replay: &Replay,
+        show_progress: bool,
+    ) -> Result<(), FrameParserError> {
         let network_frames = replay
             .network_frames
             .as_ref()
@@ -91,16 +94,30 @@ impl FrameParser {
 
         let mut time_series_replay_data = self.time_series_replay_data.borrow_mut();
 
-        // Iterate through frames
-        let bar = ProgressBar::new(self.frame_count as u64);
-        bar.set_draw_rate(30);
-        for (frame_number, frame) in network_frames.frames.iter().enumerate() {
+        let iter: Box<dyn Iterator<Item = (usize, &boxcars::Frame)>> = if show_progress {
+            let progress_bar = ProgressBar::new(self.frame_count as u64);
+            progress_bar.set_draw_rate(30);
+            Box::new(
+                network_frames
+                    .frames
+                    .iter()
+                    .enumerate()
+                    .progress_with(progress_bar),
+            )
+        } else {
+            Box::new(network_frames.frames.iter().enumerate())
+        };
+        for (frame_number, frame) in iter.into_iter() {
             let time = frame.time;
             let delta = frame.delta;
             // info!("### Frame {} ({}, {})", frame_number, time, delta);
 
             // Handle deleted actors first
             for deleted_actor_id in &frame.deleted_actors {
+                let players_actor = self.players_actor.borrow();
+                if players_actor.contains_key(&deleted_actor_id) {
+                    dbg!(players_actor.get(&deleted_actor_id));
+                }
                 if actors.remove(&deleted_actor_id).is_none() {
                     warn!(
                         "Could not find actor {} to delete on frame {}.",
@@ -113,9 +130,10 @@ impl FrameParser {
             // Handle new actors
             for new_actor in &frame.new_actors {
                 let actor_id = new_actor.actor_id;
-                let object_name = &replay_objects[usize::from(new_actor.object_id)];
                 actors.insert(actor_id, Actor::new(new_actor));
-                if let Some(handler) = handler_factory.get_handler(object_name) {
+                if let Some(handler) =
+                    handler_factory.get_handler(new_actor.object_id, &replay_objects)
+                {
                     actor_handlers.insert(actor_id, handler);
                 }
             }
@@ -150,12 +168,8 @@ impl FrameParser {
             }
 
             time_series_replay_data.insert(frame_number, TimeSeriesReplayData { time, delta });
-            bar.inc(1);
         }
-        bar.finish();
 
-        // Print debug information.
-        print_player_attributes();
         Ok(())
     }
 

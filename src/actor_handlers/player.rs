@@ -1,10 +1,7 @@
 use crate::actor_handlers::ActorHandler;
 use crate::frame_parser::{Actor, FrameParser};
 use boxcars::Attribute;
-use lazy_static::lazy_static;
-use log::info;
-use std::collections::{HashMap, HashSet};
-use std::sync::Mutex;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct PlayerHandler<'a> {
@@ -38,9 +35,11 @@ impl<'a> ActorHandler<'a> for PlayerHandler<'a> {
             }
         }
 
-        // Update actor data
-        let mut players_actor_data = self.frame_parser.players_actor.borrow_mut();
-        players_actor_data.insert(actor_id, attributes.clone());
+        // Update actor data (only on final frame to avoid unnecessary cloning)
+        if frame_number == self.frame_parser.frame_count - 1 {
+            let mut players_actor_data = self.frame_parser.players_actor.borrow_mut();
+            players_actor_data.insert(actor_id, attributes.clone());
+        }
     }
 }
 
@@ -91,22 +90,6 @@ impl TimeSeriesPlayerData {
             ping = Some(*_ping);
         }
 
-        for key in attributes.keys() {
-            if PLAYER_ATTRIBUTES_PARSED.contains(key) {
-                #[allow(non_snake_case)]
-                let mut _PLAYER_ATTRIBUTES_NOT_FOUND = PLAYER_ATTRIBUTES_NOT_FOUND.lock().unwrap();
-                if _PLAYER_ATTRIBUTES_NOT_FOUND.contains(key) {
-                    _PLAYER_ATTRIBUTES_NOT_FOUND.remove(key);
-                }
-            } else {
-                // Unparsed attribute
-                #[allow(non_snake_case)]
-                let mut _PLAYER_ATTRIBUTES_NOT_PARSED =
-                    PLAYER_ATTRIBUTES_NOT_PARSED.lock().unwrap();
-                _PLAYER_ATTRIBUTES_NOT_PARSED.insert(key.to_string());
-            }
-        }
-
         TimeSeriesPlayerData {
             match_score,
             match_goals,
@@ -117,38 +100,4 @@ impl TimeSeriesPlayerData {
             ping,
         }
     }
-}
-
-lazy_static! {
-    static ref PLAYER_ATTRIBUTES_PARSED: HashSet<String> = {
-        let mut set = HashSet::new();
-        set.insert("TAGame.PRI_TA:MatchScore".to_string());
-        set.insert("TAGame.PRI_TA:MatchGoals".to_string());
-        set.insert("TAGame.PRI_TA:MatchAssists".to_string());
-        set.insert("TAGame.PRI_TA:MatchSaves".to_string());
-        set.insert("TAGame.PRI_TA:MatchShots".to_string());
-        set.insert("Engine.PlayerReplicationInfo:Team".to_string());
-        // set.insert("TAGame.CameraSettingsActor_TA:bUsingSecondaryCamera".to_string());
-        set
-    };
-    static ref PLAYER_ATTRIBUTES_NOT_FOUND: Mutex<HashSet<String>> = {
-        let mut set = HashSet::new();
-        set.insert("TAGame.PRI_TA:MatchScore".to_string());
-        set.insert("TAGame.PRI_TA:MatchGoals".to_string());
-        set.insert("TAGame.PRI_TA:MatchAssists".to_string());
-        set.insert("TAGame.PRI_TA:MatchSaves".to_string());
-        set.insert("TAGame.PRI_TA:MatchShots".to_string());
-        set.insert("Engine.PlayerReplicationInfo:Team".to_string());
-        // set.insert("TAGame.CameraSettingsActor_TA:bUsingSecondaryCamera".to_string());
-        Mutex::new(set)
-    };
-    static ref PLAYER_ATTRIBUTES_NOT_PARSED: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
-}
-
-pub fn print_player_attributes() {
-    info!("### Player attributes debug info ###");
-    info!("Player attributes not found:");
-    info!("{:?}", PLAYER_ATTRIBUTES_NOT_FOUND.lock().unwrap());
-    info!("Player attributes not parsed");
-    info!("{:?}", PLAYER_ATTRIBUTES_NOT_PARSED.lock().unwrap());
 }

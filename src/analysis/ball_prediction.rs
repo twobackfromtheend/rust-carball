@@ -3,6 +3,7 @@ use chip::Ball;
 use lazy_static::lazy_static;
 use nalgebra::{Point3, Vector3};
 use std::sync::Mutex;
+use thiserror::Error;
 
 static PHYSICS_TICK_DELTA: f32 = 1.0 / 120.0;
 
@@ -16,9 +17,9 @@ pub fn predict_ball_bounce(
 ) -> Result<bool, BallPredictionError> {
     let mut ball = BALL.lock().map_err(|_| BallPredictionError::LockError)?;
     ball.set_pos(Point3::new(
-        ball_data.pos_x.ok_or(BallPredictionError::MissingData)?,
-        ball_data.pos_y.ok_or(BallPredictionError::MissingData)?,
-        ball_data.pos_z.ok_or(BallPredictionError::MissingData)?,
+        ball_data.pos_x.ok_or(BallPredictionError::MissingPosData)?,
+        ball_data.pos_y.ok_or(BallPredictionError::MissingPosData)?,
+        ball_data.pos_z.ok_or(BallPredictionError::MissingPosData)?,
     ));
     ball.set_vel(Vector3::new(
         ball_data.vel_x.unwrap_or(0.0),
@@ -48,8 +49,10 @@ pub fn predict_ball_bounce(
     Ok(ball.omega() != initial_omega)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Error, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BallPredictionError {
+    #[error("failed to get lock on static BALL")]
     LockError,
-    MissingData,
+    #[error("pos data required for ball prediction is missing")]
+    MissingPosData,
 }
