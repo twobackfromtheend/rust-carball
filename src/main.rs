@@ -38,19 +38,19 @@ fn main() {
     let metadata =
         MetadataOutput::generate_from(&carball_parser.replay, &carball_parser.frame_parser);
     let data_frames = if opt.skip_data_frames {
+        None
+    } else {
         Some(
             DataFramesOutput::generate_from(&carball_parser.frame_parser)
                 .expect("Failed to generate data frames."),
         )
-    } else {
-        None
     };
     let parse_output_writer = ParseOutputWriter::new(opt.output_dir, opt.data_frame_output_format);
     parse_output_writer
         .write_outputs(Some(&metadata), data_frames.as_ref())
         .expect("Failed to write outputs.");
 
-    if !opt.skip_data_frames & !opt.skip_analysis {
+    if !opt.skip_data_frames && !opt.skip_analysis {
         CarballAnalyzer::analyze(&carball_parser, &metadata).expect("Failed to analyze.");
     }
 
