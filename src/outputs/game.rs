@@ -1,12 +1,12 @@
-use boxcars::HeaderProp;
-use boxcars::Replay;
+use boxcars::{HeaderProp, Replay};
 use log::error;
 use serde::Serialize;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Game {
-    id: Option<String>,
+    id: String,
+    replay_version: i32,
     replay_name: Option<String>,
     map_name: Option<String>,
     date: Option<String>,
@@ -18,51 +18,73 @@ pub struct Game {
 
 impl Game {
     pub fn from(replay: &Replay) -> Self {
-        // Convert from Vec to HashMap. boxcars uses a Vec to allow for potential duplicate keys.
-        let properties: HashMap<String, HeaderProp> =
-            replay.properties.clone().into_iter().collect();
+        let properties = replay_properties_to_hash_map(replay);
 
-        let mut id = None;
-        let mut replay_name = None;
-        let mut map_name = None;
-        let mut date = None;
-        let mut match_type = None;
-        let mut team_0_score = None;
-        let mut team_1_score = None;
+        match properties.get("Id") {
+            Some(HeaderProp::Str(id)) => match properties.get("ReplayVersion") {
+                Some(HeaderProp::Int(replay_version)) => {
+                    let mut replay_name = None;
+                    let mut map_name = None;
+                    let mut date = None;
+                    let mut match_type = None;
+                    let mut team_0_score = None;
+                    let mut team_1_score = None;
 
-        if let Some(HeaderProp::Str(_id)) = properties.get("Id") {
-            id = Some(_id.to_string());
-        }
-        if let Some(HeaderProp::Str(_replay_name)) = properties.get("ReplayName") {
-            replay_name = Some(_replay_name.to_string());
-        }
-        if let Some(HeaderProp::Name(_map_name)) = properties.get("MapName") {
-            map_name = Some(_map_name.to_string());
-        }
-        if let Some(HeaderProp::Str(_date)) = properties.get("Date") {
-            date = Some(_date.to_string());
-        }
-        if let Some(HeaderProp::Name(_match_type)) = properties.get("MatchType") {
-            match_type = Some(_match_type.to_string());
-        }
-        if let Some(HeaderProp::Int(_team_0_score)) = properties.get("Team0Score") {
-            team_0_score = Some(*_team_0_score);
-        }
-        if let Some(HeaderProp::Int(_team_1_score)) = properties.get("Team1Score") {
-            team_1_score = Some(*_team_1_score);
-        }
+                    if let Some(HeaderProp::Str(_replay_name)) = properties.get("ReplayName") {
+                        replay_name = Some(_replay_name.to_string());
+                    }
+                    if let Some(HeaderProp::Name(_map_name)) = properties.get("MapName") {
+                        map_name = Some(_map_name.to_string());
+                    }
+                    if let Some(HeaderProp::Str(_date)) = properties.get("Date") {
+                        date = Some(_date.to_string());
+                    }
+                    if let Some(HeaderProp::Name(_match_type)) = properties.get("MatchType") {
+                        match_type = Some(_match_type.to_string());
+                    }
+                    if let Some(HeaderProp::Int(_team_0_score)) = properties.get("Team0Score") {
+                        team_0_score = Some(*_team_0_score);
+                    }
+                    if let Some(HeaderProp::Int(_team_1_score)) = properties.get("Team1Score") {
+                        team_1_score = Some(*_team_1_score);
+                    }
 
-        Self {
-            id,
-            replay_name,
-            map_name,
-            date,
-            match_type,
-            team_0_score,
-            team_1_score,
-            goals: Goal::from_replay_properties(&properties),
+                    Self {
+                        id: id.to_string(),
+                        replay_version: *replay_version,
+                        replay_name,
+                        map_name,
+                        date,
+                        match_type,
+                        team_0_score,
+                        team_1_score,
+                        goals: Goal::from_replay_properties(&properties),
+                    }
+                }
+                Some(_) => {
+                    panic!("replay header's ReplayVersion property has unexpected type");
+                }
+                None => {
+                    panic!("replay header has no ReplayVersion property");
+                }
+            },
+            Some(_) => {
+                panic!("replay header's Id property has unexpected type");
+            }
+            None => {
+                panic!("replay header has no Id property");
+            }
         }
     }
+}
+
+fn replay_properties_to_hash_map(replay: &Replay) -> HashMap<&str, &HeaderProp> {
+    // Convert from Vec to HashMap. boxcars uses a Vec to allow for potential duplicate keys.
+    replay
+        .properties
+        .iter()
+        .map(|x| (&x.0 as &str, &x.1))
+        .collect()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -73,7 +95,7 @@ pub struct Goal {
 }
 
 impl Goal {
-    pub fn from_replay_properties(properties: &HashMap<String, HeaderProp>) -> Vec<Self> {
+    pub fn from_replay_properties(properties: &HashMap<&str, &HeaderProp>) -> Vec<Self> {
         match properties.get("Goals") {
             Some(HeaderProp::Array(goals)) => goals.iter().map(|g| Goal::from(g)).collect(),
             _ => {
