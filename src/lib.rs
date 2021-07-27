@@ -9,11 +9,15 @@ use boxcars::{CrcCheck, NetworkParse, ParseError, ParserBuilder, Replay};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum CarballError {
+    #[error("failed to read file: {0}")]
     ReadFileError(io::Error),
+    #[error("boxcars failed to parse: {0}")]
     BoxCarsParseError(ParseError),
+    #[error("failed to parse frames: {0}")]
     FrameParserError(FrameParserError),
 }
 

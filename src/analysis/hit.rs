@@ -291,7 +291,7 @@ fn unwrap_ang_vel(ball_data: &TimeSeriesBallData) -> Option<(f32, f32, f32)> {
     ))
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[derive(Error, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HitDetectionError {
     #[error("ball prediction failed: {0}")]
     BallPredictionError(BallPredictionError),
