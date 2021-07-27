@@ -82,11 +82,6 @@ impl TimeSeriesCarData {
             .initial_trajectory
             .location
             .expect("Car actor has no initial location.");
-        let initial_rotation = actor
-            .new_actor
-            .initial_trajectory
-            .rotation
-            .expect("Car actor has no initial rotation.");
 
         let mut is_sleeping = None;
         let mut pos_x = Some(initial_location.x as f32);
