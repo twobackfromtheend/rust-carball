@@ -84,29 +84,29 @@ impl DataFramesOutput {
                                 )?;
                                 player_dfs.insert(actor_id.0, player_df);
                             } else {
-                                error!("Failed to write output for {} due to missing time-series boost pickup data.", player_name);
+                                error!("Failed to generate output for {} due to missing time-series boost pickup data.", player_name);
                             };
                         } else {
                             error!(
-                            "Failed to write output for {} due to missing time-series boost data.",
+                            "Failed to generate output for {} due to missing time-series boost data.",
                             player_name
                         );
                         };
                     } else {
                         error!(
-                            "Failed to write output for {} due to missing time-series player data.",
+                            "Failed to generate output for {} due to missing time-series player data.",
                             player_name
                         );
                     };
                 } else {
                     error!(
-                        "Failed to write output for {} due to missing time-series car data.",
+                        "Failed to generate output for {} due to missing time-series car data.",
                         player_name
                     );
                 };
             } else {
                 error!(
-                    "Failed to write output for player due to failure to parse for player name."
+                    "Failed to generate output for player due to failure to parse for player name."
                 );
             };
         }
@@ -274,6 +274,7 @@ fn create_ball_df(
         ang_vel_y[*frame_number] = data.ang_vel_y;
         ang_vel_z[*frame_number] = data.ang_vel_z;
         hit_team_num[*frame_number] = data.hit_team_num;
+        // dbg!((data.rot_pitch, data.rot_yaw, data.rot_roll));
     }
 
     DataFrame::new(vec![
