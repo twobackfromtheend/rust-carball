@@ -85,7 +85,7 @@ impl TimeSeriesCarData {
         let initial_rotation = actor
             .new_actor
             .initial_trajectory
-            .location
+            .rotation
             .expect("Car actor has no initial rotation.");
 
         let mut is_sleeping = None;
@@ -95,9 +95,18 @@ impl TimeSeriesCarData {
         let mut vel_x = None;
         let mut vel_y = None;
         let mut vel_z = None;
-        let mut rot_pitch = Some(initial_rotation.x as f32);
-        let mut rot_yaw = Some(initial_rotation.y as f32);
-        let mut rot_roll = Some(initial_rotation.z as f32);
+        // TODO: Find out how initial_rotation should be used.
+        // let initial_rotation = actor
+        //     .new_actor
+        //     .initial_trajectory
+        //     .rotation
+        //     .expect("Car actor has no initial rotation.");
+        // let mut rot_pitch = initial_rotation.pitch.map(|rot| rot as f32);
+        // let mut rot_yaw = initial_rotation.yaw.map(|rot| rot as f32);
+        // let mut rot_roll = initial_rotation.roll.map(|rot| rot as f32);
+        let mut rot_pitch = None;
+        let mut rot_yaw = None;
+        let mut rot_roll = None;
         let mut ang_vel_x = None;
         let mut ang_vel_y = None;
         let mut ang_vel_z = None;
