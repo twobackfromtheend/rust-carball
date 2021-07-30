@@ -2,6 +2,7 @@
 extern crate log;
 
 use carball::analysis::CarballAnalyzer;
+use carball::outputs::RangeChecker;
 use carball::outputs::{
     DataFrameOutputFormat, DataFramesOutput, MetadataOutput, ParseOutputWriter,
 };
@@ -18,8 +19,14 @@ struct Opt {
     output_dir: PathBuf,
     #[structopt(long)]
     skip_data_frames: bool,
-    #[structopt(required_unless("skip_data_frames"), possible_values = &DataFrameOutputFormat::variants(), case_insensitive = true)]
+    #[structopt(long)]
+    skip_write_data_frames: bool,
+
+    #[structopt(required_unless_one(&["skip_data_frames", "skip_write_data_frames"]), possible_values = &DataFrameOutputFormat::variants(), case_insensitive = true)]
     data_frame_output_format: Option<DataFrameOutputFormat>,
+
+    #[structopt(long)]
+    skip_checks: bool,
 
     #[structopt(long)]
     skip_analysis: bool,
@@ -45,13 +52,29 @@ fn main() {
                 .expect("Failed to generate data frames."),
         )
     };
-    let parse_output_writer = ParseOutputWriter::new(opt.output_dir, opt.data_frame_output_format);
-    parse_output_writer
-        .write_outputs(Some(&metadata), data_frames.as_ref())
-        .expect("Failed to write outputs.");
 
+    if !opt.skip_data_frames && !opt.skip_checks {
+        if let Some(_data_frames) = &data_frames {
+            let range_checker = RangeChecker::new();
+            range_checker
+                .check_ranges(_data_frames)
+                .expect("Failed to complete range checks.");
+        }
+    }
+
+    let parse_output_writer = ParseOutputWriter::new(opt.output_dir, opt.data_frame_output_format);
+    if opt.skip_write_data_frames {
+        parse_output_writer
+            .write_outputs(Some(&metadata), None)
+            .expect("Failed to write outputs.");
+    } else {
+        parse_output_writer
+            .write_outputs(Some(&metadata), data_frames.as_ref())
+            .expect("Failed to write outputs.");
+    }
     if !opt.skip_data_frames && !opt.skip_analysis {
-        CarballAnalyzer::analyze(&carball_parser, &metadata).expect("Failed to analyze.");
+        CarballAnalyzer::analyze(&carball_parser, &metadata, &data_frames.unwrap())
+            .expect("Failed to analyze.");
     }
 
     info!("fin");
