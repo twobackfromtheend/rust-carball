@@ -3,7 +3,8 @@ use crate::actor_handlers::{
     TimeSeriesCarData, TimeSeriesGameEventData, TimeSeriesPlayerData,
 };
 use crate::cleaner::{BoostPickupKind, BoostPickupKindCalculationError};
-use boxcars::{ActorId, Attribute, NewActor, Replay, UpdatedAttribute};
+use crate::replay_properties_to_hash_map;
+use boxcars::{ActorId, Attribute, HeaderProp, NewActor, Replay, UpdatedAttribute};
 use indicatif::ProgressBar;
 use indicatif::ProgressIterator;
 use log::{info, warn};
@@ -14,6 +15,7 @@ use thiserror::Error;
 
 #[derive(Debug, Clone)]
 pub struct FrameParser {
+    pub replay_version: i32,
     pub frame_count: usize,
     pub car_ids_to_player_ids: RefCell<HashMap<ActorId, ActorId>>,
 
@@ -46,12 +48,18 @@ impl FrameParser {
     }
 
     pub fn new(replay: &Replay) -> Self {
+        let properties = replay_properties_to_hash_map(replay);
+        let replay_version = match properties.get("ReplayVersion") {
+            Some(HeaderProp::Int(replay_version)) => replay_version,
+            _ => panic!("Cannot parse replay version from header properties."),
+        };
         match &replay.network_frames {
             Some(network_frames) => {
                 let frame_count = network_frames.frames.len();
                 info!("Replay with {} frames", frame_count);
 
                 Self {
+                    replay_version: *replay_version,
                     frame_count,
                     car_ids_to_player_ids: RefCell::new(HashMap::new()),
 

@@ -5,7 +5,9 @@ pub mod frame_parser;
 pub mod outputs;
 
 use crate::frame_parser::{FrameParser, FrameParserError};
+use boxcars::HeaderProp;
 use boxcars::{CrcCheck, NetworkParse, ParseError, ParserBuilder, Replay};
+use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -51,8 +53,6 @@ impl CarballParser {
             frame_parser,
         })
     }
-
-    pub fn write_outputs(self) {}
 }
 
 pub fn read_file(file_path: &Path) -> Result<Replay, CarballError> {
@@ -61,4 +61,13 @@ pub fn read_file(file_path: &Path) -> Result<Replay, CarballError> {
         .with_crc_check(CrcCheck::Always)
         .with_network_parse(NetworkParse::Always)
         .parse()?)
+}
+
+fn replay_properties_to_hash_map(replay: &Replay) -> HashMap<&str, &HeaderProp> {
+    // Convert from Vec to HashMap. boxcars uses a Vec to allow for potential duplicate keys.
+    replay
+        .properties
+        .iter()
+        .map(|x| (&x.0 as &str, &x.1))
+        .collect()
 }
