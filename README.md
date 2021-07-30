@@ -16,3 +16,22 @@ Rocket League replay analysis tool.
 3. This data is processed to fix unexpected aspects from parsing the raw replay data. (Such as boost amounts not decreasing, and boost pickups not being accurate).
 
 ### Stat generation
+
+## TODO
+
+- Stats
+  - Hit
+    - Shot detection
+    - Passes, dribbles, goals, etc.
+  - Possession
+    - Time-based
+    - ~~Distance-based~~
+  -
+
+### Development notes
+
+It tends to be faster to compile for release and parse as opposed to compiling for debug and parsing (as the duration increase for parsing in debug is more than the decrease in compile time).
+`cargo run --release -- -i "assets\replays\ranked-3s.replay" -o "outputs" csv`
+
+To read logs when running tests:
+`cargo test -- --nocapture`
