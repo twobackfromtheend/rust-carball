@@ -50,12 +50,14 @@ impl<'a> ActorHandler<'a> for CarHandler<'a> {
                     attributes.get("TAGame.Car_TA:ReplicatedDemolish")
                 {
                     let mut demos_data = self.frame_parser.demos_data.borrow_mut();
-                    demos_data.push(DemoData::from(
+                    if let Some(demo_data) = DemoData::from(
                         demolish,
                         frame_number,
                         &car_ids_to_player_ids,
                         &players_wrapped_unique_id,
-                    ));
+                    ) {
+                        demos_data.push(demo_data);
+                    }
                     attributes.remove("TAGame.Car_TA:ReplicatedDemolish");
                 }
             }
@@ -143,8 +145,13 @@ impl DemoData {
         frame_number: usize,
         car_ids_to_player_ids: &HashMap<ActorId, ActorId>,
         players_wrapped_unique_id: &HashMap<ActorId, WrappedUniqueId>,
-    ) -> Self {
-        Self {
+    ) -> Option<Self> {
+        if !demolish.attacker_flag {
+            // Attacker flag can be false and demolish.attacker == ActorId(-1).
+            // I assume this is not a player-induced demolish. Could be goal explosion or goal reset or change team.
+            return None;
+        }
+        Some(Self {
             frame_number,
             attacker_wrapped_unique_id: players_wrapped_unique_id
                 .get(car_ids_to_player_ids.get(&demolish.attacker).unwrap())
@@ -154,6 +161,6 @@ impl DemoData {
                 .get(car_ids_to_player_ids.get(&demolish.victim).unwrap())
                 .unwrap()
                 .clone(),
-        }
+        })
     }
 }

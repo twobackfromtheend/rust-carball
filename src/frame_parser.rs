@@ -22,6 +22,7 @@ pub struct FrameParser {
     pub players_wrapped_unique_id: RefCell<HashMap<ActorId, WrappedUniqueId>>,
 
     pub players_actor: RefCell<HashMap<WrappedUniqueId, HashMap<String, Attribute>>>,
+    pub players_teams: RefCell<HashMap<WrappedUniqueId, HashMap<bool, usize>>>,
     pub teams_data: RefCell<HashMap<ActorId, TeamData>>,
 
     pub game_info_actor: RefCell<Option<HashMap<String, Attribute>>>,
@@ -70,6 +71,7 @@ impl FrameParser {
 
                     teams_data: RefCell::new(HashMap::new()),
                     players_actor: RefCell::new(HashMap::new()),
+                    players_teams: RefCell::new(HashMap::new()),
                     game_info_actor: RefCell::new(None),
                     game_event_actor: RefCell::new(None),
 

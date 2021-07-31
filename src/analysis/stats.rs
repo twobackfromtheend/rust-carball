@@ -247,7 +247,8 @@ impl GameplayPeriod {
             start_search_at = end_frame + 1;
         }
 
-        if start_search_at < game_frames - 1 {
+        // Buffer of a couple of frames because some replays have shenanigans happening after (ball teleporting and HitTeamNum not set then set to other team).
+        if start_search_at < game_frames - 20 {
             // Last gameplay period without a goal.
             let start_frame = GameplayPeriod::find_start_frame(
                 replicated_game_state_time_remaining,
@@ -287,6 +288,7 @@ impl GameplayPeriod {
             }
             search_start_frame += 1;
             if search_start_frame >= end_search_at {
+                println!("{}, {}", start_search_at, end_search_at);
                 panic!("Could not find start frame for gameplay period.");
             }
         }

@@ -48,10 +48,53 @@ impl<'a> ActorHandler<'a> for PlayerHandler<'a> {
             }
         }
 
+        // Record team every 500 frames.
+        if frame_number > 500 && frame_number % 500 == 1 {
+            let teams_actor = self.frame_parser.teams_data.borrow();
+            let mut players_teams = self.frame_parser.players_teams.borrow_mut();
+            if let Some(Attribute::ActiveActor(team_active_actor)) =
+                attributes.get("Engine.PlayerReplicationInfo:Team")
+            {
+                let team_actor_id = team_active_actor.actor;
+                if let Some(is_orange) = teams_actor
+                    .get(&team_actor_id)
+                    .map(|team_data| team_data.is_orange)
+                {
+                    let player_teams = players_teams
+                        .entry(wrapped_unique_id.clone())
+                        .or_insert(HashMap::new());
+                    player_teams
+                        .entry(is_orange)
+                        .and_modify(|count| *count += 1)
+                        .or_insert(1);
+                }
+            };
+        }
+
         // Update actor data (only on final frame to avoid unnecessary cloning)
         if frame_number == self.frame_parser.frame_count - 1 {
             let mut players_actor_data = self.frame_parser.players_actor.borrow_mut();
-            players_actor_data.insert(wrapped_unique_id, attributes.clone());
+            if !players_actor_data.contains_key(&wrapped_unique_id) {
+                players_actor_data.insert(wrapped_unique_id, attributes.clone());
+            } else {
+                let match_score = match attributes.get("TAGame.PRI_TA:MatchScore") {
+                    Some(Attribute::Int(match_score)) => *match_score,
+                    _ => 0,
+                };
+                let existing_player_actor_data =
+                    players_actor_data.get(&wrapped_unique_id).unwrap();
+                let existing_match_score =
+                    match existing_player_actor_data.get("TAGame.PRI_TA:MatchScore") {
+                        Some(Attribute::Int(match_score)) => *match_score,
+                        _ => 0,
+                    };
+                if match_score > existing_match_score {
+                    // Replace existing entry with this, as this has higher match score.
+                    dbg!(&existing_player_actor_data);
+                    dbg!(&players_actor_data);
+                    players_actor_data.insert(wrapped_unique_id, attributes.clone());
+                }
+            }
         }
     }
 

@@ -26,10 +26,16 @@ impl Player {
     pub fn from_frame_parser(frame_parser: &FrameParser) -> Vec<Self> {
         let players_actor = frame_parser.players_actor.borrow();
         let teams_actor = frame_parser.teams_data.borrow();
+        let players_teams = frame_parser.players_teams.borrow();
         players_actor
             .iter()
             .map(|(wrapped_unique_id, player_actor)| {
-                Player::from(wrapped_unique_id, player_actor, &teams_actor)
+                Player::from(
+                    wrapped_unique_id,
+                    player_actor,
+                    &teams_actor,
+                    &players_teams,
+                )
             })
             .collect()
     }
@@ -38,6 +44,7 @@ impl Player {
         wrapped_unique_id: &WrappedUniqueId,
         attributes: &HashMap<String, boxcars::Attribute>,
         teams_actor: &HashMap<ActorId, TeamData>,
+        players_teams: &HashMap<WrappedUniqueId, HashMap<bool, usize>>,
     ) -> Self {
         Self {
             unique_id: wrapped_unique_id.clone(),
@@ -83,11 +90,13 @@ impl Player {
             is_orange: match attributes.get("Engine.PlayerReplicationInfo:Team") {
                 Some(Attribute::ActiveActor(team_active_actor)) => {
                     let team_actor_id = team_active_actor.actor;
-                    teams_actor
-                        .get(&team_actor_id)
-                        .map(|team_data| team_data.is_orange)
+                    if let Some(team_data) = teams_actor.get(&team_actor_id) {
+                        Some(team_data.is_orange)
+                    } else {
+                        try_get_player_team(wrapped_unique_id, players_teams)
+                    }
                 }
-                _ => None,
+                _ => try_get_player_team(wrapped_unique_id, players_teams),
             },
             match_score: match attributes.get("TAGame.PRI_TA:MatchScore") {
                 Some(Attribute::Int(match_score)) => *match_score,
@@ -118,4 +127,23 @@ where
     S: Serializer,
 {
     serializer.serialize_str(&input.to_string())
+}
+
+/// Tries to get the player's team through FrameParser's running count of whether the team.
+/// (This count is only made once every 500 frames)
+/// This handles cases where players leave the team at the end (and team_actor_id == ActorId(-1))
+/// Only accepts team if at least 3 records were made of the player being in the team, to avoid spectators being recorded as part of the team.
+fn try_get_player_team(
+    wrapped_unique_id: &WrappedUniqueId,
+    players_teams: &HashMap<WrappedUniqueId, HashMap<bool, usize>>,
+) -> Option<bool> {
+    if let Some(player_teams) = players_teams.get(&wrapped_unique_id) {
+        player_teams
+            .iter()
+            .max_by(|a, b| a.1.cmp(&b.1))
+            .map(|(k, v)| if v > &3 { Some(*k) } else { None })
+            .flatten()
+    } else {
+        None
+    }
 }
