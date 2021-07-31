@@ -27,7 +27,12 @@ impl<'a> ActorHandler<'a> for BoostHandler<'a> {
                     .frame_parser
                     .players_time_series_boost_data
                     .borrow_mut();
-                match players_data.get_mut(&player_actor_id) {
+
+                let players_wrapped_unique_id =
+                    self.frame_parser.players_wrapped_unique_id.borrow();
+                let player_wrapped_unique_id =
+                    players_wrapped_unique_id.get(&player_actor_id).unwrap();
+                match players_data.get_mut(&player_wrapped_unique_id) {
                     Some(player_data) => {
                         player_data.insert(frame_number, boost_data);
                     }
@@ -35,7 +40,7 @@ impl<'a> ActorHandler<'a> for BoostHandler<'a> {
                         let mut player_data =
                             HashMap::with_capacity(self.frame_parser.frame_count - frame_number);
                         player_data.insert(frame_number, boost_data);
-                        players_data.insert(*player_actor_id, player_data);
+                        players_data.insert(player_wrapped_unique_id.clone(), player_data);
                     }
                 }
             }

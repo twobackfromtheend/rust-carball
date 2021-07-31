@@ -1,8 +1,7 @@
-use crate::actor_handlers::{TimeSeriesBallData, TimeSeriesCarData};
+use crate::actor_handlers::{TimeSeriesBallData, TimeSeriesCarData, WrappedUniqueId};
 use crate::analysis::{predict_ball_bounce, BallPredictionError};
 use crate::frame_parser::FrameParser;
 use crate::outputs::MetadataOutput;
-use boxcars::ActorId;
 use log::{error, warn};
 use serde::Serialize;
 use std::cmp::Ordering;
@@ -18,10 +17,10 @@ enum IsHitConclusion {
     NotHit,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Hit {
     pub frame_number: usize,
-    pub player_actor_id: i32,
+    pub player_unique_id: WrappedUniqueId,
     pub player_distance: f32,
     pub _debug_info: HitDebugInfo,
 }
@@ -43,13 +42,13 @@ impl Hit {
         let time_series_ball_data = frame_parser.time_series_ball_data.borrow();
         let players_time_series_car_data = frame_parser.players_time_series_car_data.borrow();
 
-        let mut blue_player_actor_ids = vec![];
-        let mut orange_player_actor_ids = vec![];
+        let mut blue_players_wrapped_unique_id = vec![];
+        let mut orange_players_wrapped_unique_id = vec![];
         for player in metadata.players.iter() {
             if let Some(player_is_orange) = player.is_orange {
                 match player_is_orange {
-                    true => orange_player_actor_ids.push(player._actor_id),
-                    false => blue_player_actor_ids.push(player._actor_id),
+                    true => orange_players_wrapped_unique_id.push(player.unique_id.clone()),
+                    false => blue_players_wrapped_unique_id.push(player.unique_id.clone()),
                 }
             }
         }
@@ -96,7 +95,7 @@ impl Hit {
                                 }
                                 let delta = time_series_replay_data
                                     .get(&frame_number)
-                                    .ok_or_else(|| HitDetectionError::MissingDelta(frame_number))?
+                                    .ok_or(HitDetectionError::MissingDelta(frame_number))?
                                     .delta;
                                 {
                                     if predict_ball_bounce(previous_frame_ball_data_value, delta)
@@ -154,21 +153,21 @@ impl Hit {
                                         // Filter potential hit players by hit_team_num
                                         let empty_vec = vec![];
                                         let potential_hit_players = match hit_team_num {
-                                            0 => &blue_player_actor_ids,
-                                            1 => &orange_player_actor_ids,
+                                            0 => &blue_players_wrapped_unique_id,
+                                            1 => &orange_players_wrapped_unique_id,
                                             _ => &empty_vec,
                                         };
 
                                         let potential_hit_player_datas: HashMap<
-                                            i32,
+                                            WrappedUniqueId,
                                             Option<&TimeSeriesCarData>,
                                         > = potential_hit_players
                                             .iter()
-                                            .map(|actor_id| {
+                                            .map(|wrapped_unique_id| {
                                                 (
-                                                    *actor_id,
+                                                    wrapped_unique_id.clone(),
                                                     players_time_series_car_data
-                                                        .get(&ActorId(*actor_id))
+                                                        .get(wrapped_unique_id)
                                                         .map(|time_series_car_data| {
                                                             time_series_car_data.get(&frame_number)
                                                         })
@@ -190,7 +189,7 @@ impl Hit {
                                             {
                                                 hits.push(Hit {
                                                     frame_number,
-                                                    player_actor_id: nearest_player,
+                                                    player_unique_id: nearest_player.clone(),
                                                     player_distance: nearest_distance,
                                                     _debug_info: HitDebugInfo {
                                                         hit_team_num_changed,
@@ -200,7 +199,12 @@ impl Hit {
                                                     },
                                                 });
                                                 if nearest_distance > MAX_HIT_CAR_DISTANCE {
-                                                    warn!("Found hit on frame {} where player ({}) is far from ball: {} uu", frame_number, nearest_player, nearest_distance,);
+                                                    warn!(
+                                                        "Found hit on frame {} where player ({}) is far from ball: {} uu", 
+                                                        frame_number,
+                                                        nearest_player.to_string(), 
+                                                        nearest_distance,
+                                                    );
                                                 }
                                             } else {
                                                 error!("Failed to find nearest player on frame {} for hit.", frame_number);
@@ -212,7 +216,7 @@ impl Hit {
                                                 if nearest_distance <= MAX_HIT_CAR_DISTANCE {
                                                     hits.push(Hit {
                                                         frame_number,
-                                                        player_actor_id: nearest_player,
+                                                        player_unique_id: nearest_player,
                                                         player_distance: nearest_distance,
                                                         _debug_info: HitDebugInfo {
                                                             hit_team_num_changed,
@@ -239,13 +243,13 @@ impl Hit {
 
 fn get_player_distances(
     ball_data: &TimeSeriesBallData,
-    player_datas: HashMap<i32, Option<&TimeSeriesCarData>>,
-) -> HashMap<i32, f32> {
+    player_datas: HashMap<WrappedUniqueId, Option<&TimeSeriesCarData>>,
+) -> HashMap<WrappedUniqueId, f32> {
     let mut player_distances = HashMap::with_capacity(player_datas.len());
-    for (actor_id, player_data) in player_datas.iter() {
+    for (wrapped_unique_id, player_data) in player_datas.iter() {
         if let Some(_player_data) = player_data {
             if let Some(distance) = get_player_distance(ball_data, _player_data) {
-                player_distances.insert(*actor_id, distance);
+                player_distances.insert(wrapped_unique_id.clone(), distance);
             };
         }
     }
@@ -267,11 +271,13 @@ fn get_player_distance(
     )
 }
 
-fn get_nearest_player(player_distances: HashMap<i32, f32>) -> Option<(i32, f32)> {
+fn get_nearest_player(
+    player_distances: HashMap<WrappedUniqueId, f32>,
+) -> Option<(WrappedUniqueId, f32)> {
     player_distances
         .iter()
         .min_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(Ordering::Greater))
-        .map(|(k, v)| (*k, *v))
+        .map(|(k, v)| (k.clone(), *v))
 }
 
 fn get_ball_speed(ball_data: &TimeSeriesBallData) -> Option<f32> {

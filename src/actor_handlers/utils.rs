@@ -1,6 +1,9 @@
 use crate::frame_parser::Actor;
+use boxcars::attributes::{RemoteId, UniqueId};
 use boxcars::{Attribute, Quaternion};
-use std::collections::HashMap;
+use serde::{Serialize, Serializer};
+use std::collections::{hash_map::DefaultHasher, HashMap};
+use std::hash::{Hash, Hasher};
 
 pub struct RigidBodyData {
     pub is_sleeping: Option<bool>,
@@ -137,4 +140,78 @@ pub fn euler_from_quat(quaternion: Quaternion) -> (f32, f32, f32) {
     let cosy = 1.0 - 2.0 * (y * y + z * z);
     let yaw = siny.atan2(cosy);
     (pitch, yaw, roll)
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct WrappedUniqueId(UniqueId);
+
+impl WrappedUniqueId {
+    pub fn from(attributes: &HashMap<String, Attribute>) -> Self {
+        if let Some(Attribute::UniqueId(unique_id)) =
+            attributes.get("Engine.PlayerReplicationInfo:UniqueId")
+        {
+            Self(unique_id.as_ref().clone())
+        } else {
+            panic!("Could not get UniqueId attribute.")
+        }
+    }
+}
+
+impl Hash for WrappedUniqueId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match &self.0.remote_id {
+            RemoteId::PlayStation(ps4_id) => {
+                "PlayStation".hash(state);
+                ps4_id.online_id.hash(state);
+                ps4_id.name.hash(state);
+            }
+            RemoteId::PsyNet(psy_net_id) => {
+                "PsyNet".hash(state);
+                psy_net_id.online_id.hash(state);
+            }
+            RemoteId::SplitScreen(i) => {
+                "SplitScreen".hash(state);
+                i.hash(state);
+            }
+            RemoteId::Steam(i) => {
+                "Steam".hash(state);
+                i.hash(state);
+            }
+            RemoteId::Switch(switch_id) => {
+                "Switch".hash(state);
+                switch_id.online_id.hash(state);
+            }
+            RemoteId::Xbox(i) => {
+                "Xbox".hash(state);
+                i.hash(state);
+            }
+            RemoteId::QQ(i) => {
+                "QQ".hash(state);
+                i.hash(state);
+            }
+            RemoteId::Epic(string) => {
+                "Epic".hash(state);
+                string.hash(state);
+            }
+        }
+    }
+}
+
+impl Eq for WrappedUniqueId {}
+
+impl WrappedUniqueId {
+    pub fn to_string(&self) -> String {
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        hasher.finish().to_string()
+    }
+}
+
+impl Serialize for WrappedUniqueId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
 }

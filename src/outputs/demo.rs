@@ -1,12 +1,12 @@
-use crate::actor_handlers::DemoData;
+use crate::actor_handlers::{DemoData, WrappedUniqueId};
 use crate::frame_parser::FrameParser;
 use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Demo {
     frame_number: i32,
-    attacker_actor_id: i32,
-    victim_actor_id: i32,
+    attacker_unique_id: WrappedUniqueId,
+    victim_unique_id: WrappedUniqueId,
 }
 
 impl Demo {
@@ -18,8 +18,8 @@ impl Demo {
     pub fn from(demo_data: &DemoData) -> Self {
         Self {
             frame_number: demo_data.frame_number as i32,
-            attacker_actor_id: demo_data.attacker_actor_id.0,
-            victim_actor_id: demo_data.victim_actor_id.0,
+            attacker_unique_id: demo_data.attacker_wrapped_unique_id.clone(),
+            victim_unique_id: demo_data.victim_wrapped_unique_id.clone(),
         }
     }
 }

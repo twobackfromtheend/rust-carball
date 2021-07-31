@@ -1,4 +1,4 @@
-use crate::actor_handlers::ActorHandler;
+use crate::actor_handlers::{ActorHandler, ActorHandlerPriority, WrappedUniqueId};
 use crate::frame_parser::{Actor, FrameParser};
 use boxcars::Attribute;
 use std::collections::HashMap;
@@ -6,16 +6,28 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct PlayerHandler<'a> {
     frame_parser: &'a FrameParser,
+    wrapped_unique_id: Option<WrappedUniqueId>,
 }
 
 impl<'a> ActorHandler<'a> for PlayerHandler<'a> {
     fn new(frame_parser: &'a FrameParser) -> Self {
-        Self { frame_parser }
+        Self {
+            frame_parser,
+            wrapped_unique_id: None,
+        }
     }
 
     fn update(&mut self, actor: &Actor, frame_number: usize, _time: f32, _delta: f32) {
         let actor_id = actor.new_actor.actor_id;
         let attributes = actor.attributes.borrow();
+
+        if self.wrapped_unique_id == None {
+            let wrapped_unique_id = WrappedUniqueId::from(&attributes);
+            self.wrapped_unique_id = Some(wrapped_unique_id.clone());
+            let mut players_wrapped_unique_id =
+                self.frame_parser.players_wrapped_unique_id.borrow_mut();
+            players_wrapped_unique_id.insert(actor_id, wrapped_unique_id);
+        }
 
         // Add time-series data
         let data = TimeSeriesPlayerData::from(actor);
@@ -23,7 +35,8 @@ impl<'a> ActorHandler<'a> for PlayerHandler<'a> {
             .frame_parser
             .players_time_series_player_data
             .borrow_mut();
-        match players_data.get_mut(&actor_id) {
+        let wrapped_unique_id = self.wrapped_unique_id.as_ref().unwrap().clone();
+        match players_data.get_mut(&wrapped_unique_id) {
             Some(player_data) => {
                 player_data.insert(frame_number, data);
             }
@@ -31,15 +44,19 @@ impl<'a> ActorHandler<'a> for PlayerHandler<'a> {
                 let mut player_data =
                     HashMap::with_capacity(self.frame_parser.frame_count - frame_number);
                 player_data.insert(frame_number, data);
-                players_data.insert(actor_id, player_data);
+                players_data.insert(wrapped_unique_id.clone(), player_data);
             }
         }
 
         // Update actor data (only on final frame to avoid unnecessary cloning)
         if frame_number == self.frame_parser.frame_count - 1 {
             let mut players_actor_data = self.frame_parser.players_actor.borrow_mut();
-            players_actor_data.insert(actor_id, attributes.clone());
+            players_actor_data.insert(wrapped_unique_id, attributes.clone());
         }
+    }
+
+    fn priority(&self) -> ActorHandlerPriority {
+        ActorHandlerPriority::First
     }
 }
 

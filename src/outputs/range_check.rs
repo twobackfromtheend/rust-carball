@@ -46,20 +46,20 @@ impl RangeChecker {
     pub fn new() -> Self {
         let ball = collection! {
             "pos_x".to_string() => Range {
-                min: -PITCH_SIDE_WALL + BALL_RADIUS - 20.0,
-                max: PITCH_SIDE_WALL - BALL_RADIUS + 20.0,
-                buffer: 20.0,
+                min: -PITCH_SIDE_WALL + BALL_RADIUS - 30.0,
+                max: PITCH_SIDE_WALL - BALL_RADIUS + 30.0,
+                buffer: 30.0,
             },
             "pos_y".to_string() => Range {
                 // Higher buffer due to ball being able to enter goal by a lag-dependent amount.
-                min: -(PITCH_BACK_WALL + PITCH_GOAL_DEPTH - BALL_RADIUS) - 20.0,
-                max: PITCH_BACK_WALL + PITCH_GOAL_DEPTH - BALL_RADIUS + 20.0,
-                buffer: PITCH_GOAL_DEPTH + 20.0,
+                min: -(PITCH_BACK_WALL + PITCH_GOAL_DEPTH - BALL_RADIUS) - 30.0,
+                max: PITCH_BACK_WALL + PITCH_GOAL_DEPTH - BALL_RADIUS + 30.0,
+                buffer: PITCH_GOAL_DEPTH + 30.0,
             },
             "pos_z".to_string() => Range {
-                min: PITCH_FLOOR + BALL_RADIUS - 20.0,
-                max: PITCH_CEILING - BALL_RADIUS + 20.0,
-                buffer: 20.0,
+                min: PITCH_FLOOR + BALL_RADIUS - 30.0,
+                max: PITCH_CEILING - BALL_RADIUS + 30.0,
+                buffer: 30.0,
             },
             "vel_x".to_string() => Range {
                 min: -BALL_MAX_SPEED,
@@ -154,7 +154,7 @@ impl RangeChecker {
             }
         }
 
-        for (_player_actor_id, player_data_frame) in &data_frames.players {
+        for player_data_frame in data_frames.players.values() {
             for (column_name, column_range) in self.player.iter() {
                 let series = player_data_frame
                     .column(column_name)
@@ -168,6 +168,12 @@ impl RangeChecker {
     }
 }
 
+impl Default for RangeChecker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Range {
     min: f32,
@@ -177,12 +183,12 @@ pub struct Range {
 
 impl Range {
     pub fn check(&self, series: &Series, label: &str) -> Result<bool, RangeCheckerError> {
-        let min = series.min::<f32>().ok_or_else(|| {
-            RangeCheckerError::ArithmeticError(format!("{} min", label).to_string())
-        })?;
-        let max = series.max::<f32>().ok_or_else(|| {
-            RangeCheckerError::ArithmeticError(format!("{} max", label).to_string())
-        })?;
+        let min = series
+            .min::<f32>()
+            .ok_or_else(|| RangeCheckerError::ArithmeticError(format!("{} min", label)))?;
+        let max = series
+            .max::<f32>()
+            .ok_or_else(|| RangeCheckerError::ArithmeticError(format!("{} max", label)))?;
         if min < self.min || max > self.max {
             error!(
                 "{} failed range check. found (min, max): ({}, {}), reference (min, max): ({}, {})",

@@ -1,6 +1,7 @@
 use crate::actor_handlers::{
-    ActorHandler, ActorHandlerFactory, DemoData, TeamData, TimeSeriesBallData, TimeSeriesBoostData,
-    TimeSeriesCarData, TimeSeriesGameEventData, TimeSeriesPlayerData,
+    ActorHandler, ActorHandlerFactory, ActorHandlerPriority, DemoData, TeamData,
+    TimeSeriesBallData, TimeSeriesBoostData, TimeSeriesCarData, TimeSeriesGameEventData,
+    TimeSeriesPlayerData, WrappedUniqueId,
 };
 use crate::cleaner::{BoostPickupKind, BoostPickupKindCalculationError};
 use crate::replay_properties_to_hash_map;
@@ -18,20 +19,23 @@ pub struct FrameParser {
     pub replay_version: i32,
     pub frame_count: usize,
     pub car_ids_to_player_ids: RefCell<HashMap<ActorId, ActorId>>,
+    pub players_wrapped_unique_id: RefCell<HashMap<ActorId, WrappedUniqueId>>,
 
+    pub players_actor: RefCell<HashMap<WrappedUniqueId, HashMap<String, Attribute>>>,
     pub teams_data: RefCell<HashMap<ActorId, TeamData>>,
-    pub players_actor: RefCell<HashMap<ActorId, HashMap<String, Attribute>>>,
+
     pub game_info_actor: RefCell<Option<HashMap<String, Attribute>>>,
     pub game_event_actor: RefCell<Option<HashMap<String, Attribute>>>,
 
     pub time_series_replay_data: RefCell<HashMap<usize, TimeSeriesReplayData>>,
     pub time_series_game_event_data: RefCell<HashMap<usize, TimeSeriesGameEventData>>,
     pub time_series_ball_data: RefCell<HashMap<usize, TimeSeriesBallData>>,
-    pub players_time_series_car_data: RefCell<HashMap<ActorId, HashMap<usize, TimeSeriesCarData>>>,
+    pub players_time_series_car_data:
+        RefCell<HashMap<WrappedUniqueId, HashMap<usize, TimeSeriesCarData>>>,
     pub players_time_series_player_data:
-        RefCell<HashMap<ActorId, HashMap<usize, TimeSeriesPlayerData>>>,
+        RefCell<HashMap<WrappedUniqueId, HashMap<usize, TimeSeriesPlayerData>>>,
     pub players_time_series_boost_data:
-        RefCell<HashMap<ActorId, HashMap<usize, TimeSeriesBoostData>>>,
+        RefCell<HashMap<WrappedUniqueId, HashMap<usize, TimeSeriesBoostData>>>,
     pub demos_data: RefCell<Vec<DemoData>>,
 
     pub cleaned_data: Option<CleanedData>,
@@ -62,6 +66,7 @@ impl FrameParser {
                     replay_version: *replay_version,
                     frame_count,
                     car_ids_to_player_ids: RefCell::new(HashMap::new()),
+                    players_wrapped_unique_id: RefCell::new(HashMap::new()),
 
                     teams_data: RefCell::new(HashMap::new()),
                     players_actor: RefCell::new(HashMap::new()),
@@ -96,7 +101,10 @@ impl FrameParser {
             .ok_or(FrameParserError::MissingNetworkFrames)?;
 
         let handler_factory = ActorHandlerFactory::new(self);
-        let mut actor_handlers: HashMap<ActorId, Box<dyn ActorHandler>> = HashMap::new();
+        let mut actor_handlers: HashMap<
+            ActorHandlerPriority,
+            HashMap<ActorId, Box<dyn ActorHandler>>,
+        > = HashMap::new();
         let mut actors: HashMap<ActorId, Actor> = HashMap::new();
         let replay_objects = &replay.objects;
 
@@ -122,17 +130,21 @@ impl FrameParser {
 
             // Handle deleted actors first
             for deleted_actor_id in &frame.deleted_actors {
-                let players_actor = self.players_actor.borrow();
-                if players_actor.contains_key(&deleted_actor_id) {
-                    dbg!(players_actor.get(&deleted_actor_id));
-                }
                 if actors.remove(&deleted_actor_id).is_none() {
                     warn!(
                         "Could not find actor {} to delete on frame {}.",
                         deleted_actor_id, frame_number
                     );
                 }
-                actor_handlers.remove(deleted_actor_id);
+                if let Some(_actor_handlers) = actor_handlers.get_mut(&ActorHandlerPriority::First)
+                {
+                    _actor_handlers.remove(deleted_actor_id);
+                }
+                if let Some(_actor_handlers) =
+                    actor_handlers.get_mut(&ActorHandlerPriority::Standard)
+                {
+                    _actor_handlers.remove(deleted_actor_id);
+                }
             }
 
             // Handle new actors
@@ -142,7 +154,10 @@ impl FrameParser {
                 if let Some(handler) =
                     handler_factory.get_handler(new_actor.object_id, &replay_objects)
                 {
-                    actor_handlers.insert(actor_id, handler);
+                    let _actor_handlers = actor_handlers
+                        .entry(handler.priority())
+                        .or_insert_with(HashMap::new);
+                    _actor_handlers.insert(actor_id, handler);
                 }
             }
 
@@ -164,17 +179,20 @@ impl FrameParser {
             // }
 
             // Run handler updates
-            for (actor_id, handler) in actor_handlers.iter_mut() {
-                handler.update(
-                    actors.get(actor_id).ok_or_else(|| {
-                        FrameParserError::ActorUpdateMissingIdError(frame_number, *actor_id)
-                    })?,
-                    frame_number,
-                    time,
-                    delta,
-                )
+            for priority in ActorHandlerPriority::iterator() {
+                if let Some(mut _actor_handlers) = actor_handlers.get_mut(priority) {
+                    for (actor_id, handler) in _actor_handlers.iter_mut() {
+                        handler.update(
+                            actors.get(actor_id).ok_or_else(|| {
+                                FrameParserError::ActorUpdateMissingIdError(frame_number, *actor_id)
+                            })?,
+                            frame_number,
+                            time,
+                            delta,
+                        )
+                    }
+                }
             }
-
             time_series_replay_data.insert(frame_number, TimeSeriesReplayData { time, delta });
         }
 
@@ -189,13 +207,22 @@ impl FrameParser {
 
         let mut cleaned_data = CleanedData::new();
 
-        for (actor_id, player_actor) in players_actor.iter() {
+        for (wrapped_unique_id, player_actor) in players_actor.iter() {
             let player_name = match player_actor.get("Engine.PlayerReplicationInfo:PlayerName") {
                 Some(Attribute::String(_player_name)) => _player_name,
                 _ => "UnknownName",
             };
-            if let Some(time_series_boost_data) = players_time_series_boost_data.get(actor_id) {
-                if let Some(time_series_car_data) = players_time_series_car_data.get(actor_id) {
+            // if player_name == "AyyJayy" {
+            //     dbg!(&player_actor);
+            // }
+            // let player_wrapped_unique_id = players_wrapped_unique_id.get(&actor_id).unwrap();
+
+            if let Some(time_series_boost_data) =
+                players_time_series_boost_data.get(wrapped_unique_id)
+            {
+                if let Some(time_series_car_data) =
+                    players_time_series_car_data.get(wrapped_unique_id)
+                {
                     let mut cleaned_time_series_boost_data =
                         HashMap::with_capacity(self.frame_count);
                     let mut cleaned_time_series_boost_pickup_data =
@@ -261,10 +288,11 @@ impl FrameParser {
                     }
                     cleaned_data
                         .players_time_series_boost_data
-                        .insert(*actor_id, cleaned_time_series_boost_data);
-                    cleaned_data
-                        .players_time_series_boost_pickup_data
-                        .insert(*actor_id, cleaned_time_series_boost_pickup_data);
+                        .insert(wrapped_unique_id.clone(), cleaned_time_series_boost_data);
+                    cleaned_data.players_time_series_boost_pickup_data.insert(
+                        wrapped_unique_id.clone(),
+                        cleaned_time_series_boost_pickup_data,
+                    );
                 }
             }
         }
@@ -306,14 +334,17 @@ pub struct TimeSeriesReplayData {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CleanedData {
-    pub players_time_series_boost_data: HashMap<ActorId, HashMap<usize, TimeSeriesBoostData>>,
+    pub players_actor: HashMap<WrappedUniqueId, HashMap<String, Attribute>>,
+    pub players_time_series_boost_data:
+        HashMap<WrappedUniqueId, HashMap<usize, TimeSeriesBoostData>>,
     pub players_time_series_boost_pickup_data:
-        HashMap<ActorId, HashMap<usize, Option<BoostPickupKind>>>,
+        HashMap<WrappedUniqueId, HashMap<usize, Option<BoostPickupKind>>>,
 }
 
 impl CleanedData {
     pub fn new() -> Self {
         Self {
+            players_actor: HashMap::new(),
             players_time_series_boost_data: HashMap::new(),
             players_time_series_boost_pickup_data: HashMap::new(),
         }

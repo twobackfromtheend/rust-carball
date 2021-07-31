@@ -1,14 +1,16 @@
-use crate::actor_handlers::TeamData;
+use crate::actor_handlers::{TeamData, WrappedUniqueId};
 use crate::frame_parser::FrameParser;
 use boxcars::attributes::RemoteId;
 use boxcars::{ActorId, Attribute};
 use log::error;
 use serde::Serialize;
+use serde::Serializer;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Player {
-    pub _actor_id: i32,
+    #[serde(serialize_with = "serialize_wrapped_unique_id")]
+    pub unique_id: WrappedUniqueId,
     pub name: String,
     pub online_id: Option<String>,
     pub online_id_kind: Option<String>,
@@ -23,20 +25,22 @@ pub struct Player {
 impl Player {
     pub fn from_frame_parser(frame_parser: &FrameParser) -> Vec<Self> {
         let players_actor = frame_parser.players_actor.borrow();
-        let teams_actor = frame_parser.teams_data.borrow(); // TODO: REMOVE
+        let teams_actor = frame_parser.teams_data.borrow();
         players_actor
             .iter()
-            .map(|(actor_id, player_actor)| Player::from(actor_id, player_actor, &teams_actor))
+            .map(|(wrapped_unique_id, player_actor)| {
+                Player::from(wrapped_unique_id, player_actor, &teams_actor)
+            })
             .collect()
     }
 
     pub fn from(
-        actor_id: &boxcars::ActorId,
+        wrapped_unique_id: &WrappedUniqueId,
         attributes: &HashMap<String, boxcars::Attribute>,
         teams_actor: &HashMap<ActorId, TeamData>,
     ) -> Self {
         Self {
-            _actor_id: actor_id.0,
+            unique_id: wrapped_unique_id.clone(),
             name: match attributes.get("Engine.PlayerReplicationInfo:PlayerName") {
                 Some(Attribute::String(name)) => name.to_string(),
                 _ => {
@@ -107,4 +111,11 @@ impl Player {
             },
         }
     }
+}
+
+fn serialize_wrapped_unique_id<S>(input: &WrappedUniqueId, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&input.to_string())
 }

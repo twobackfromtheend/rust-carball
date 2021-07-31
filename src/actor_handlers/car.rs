@@ -1,7 +1,7 @@
-use crate::actor_handlers::{ActorHandler, RigidBodyData};
+use crate::actor_handlers::{ActorHandler, RigidBodyData, WrappedUniqueId};
 use crate::frame_parser::{Actor, FrameParser};
 use boxcars::attributes::Demolish;
-use boxcars::Attribute;
+use boxcars::{ActorId, Attribute};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -21,35 +21,43 @@ impl<'a> ActorHandler<'a> for CarHandler<'a> {
             attributes.get("Engine.Pawn:PlayerReplicationInfo")
         {
             let player_actor_id = active_actor.actor;
-            // Assign car-player links
-            self.frame_parser
-                .car_ids_to_player_ids
-                .borrow_mut()
-                .insert(car_actor_id, player_actor_id);
-
-            // Add time-series car data
-            let car_data =
-                TimeSeriesCarData::from(actor, &attributes, self.frame_parser.replay_version); // attributes passed here as borrowed mut above.
-            let mut players_data = self.frame_parser.players_time_series_car_data.borrow_mut();
-            match players_data.get_mut(&player_actor_id) {
-                Some(player_data) => {
-                    player_data.insert(frame_number, car_data);
-                }
-                None => {
-                    let mut player_data =
-                        HashMap::with_capacity(self.frame_parser.frame_count - frame_number);
-                    player_data.insert(frame_number, car_data);
-                    players_data.insert(player_actor_id, player_data);
-                }
-            }
-
-            // Add demos
-            if let Some(Attribute::Demolish(demolish)) =
-                attributes.get("TAGame.Car_TA:ReplicatedDemolish")
+            let players_wrapped_unique_id = self.frame_parser.players_wrapped_unique_id.borrow();
+            if let Some(player_wrapped_unique_id) = players_wrapped_unique_id.get(&player_actor_id)
             {
-                let mut demos_data = self.frame_parser.demos_data.borrow_mut();
-                demos_data.push(DemoData::from(demolish, frame_number));
-                attributes.remove("TAGame.Car_TA:ReplicatedDemolish");
+                // Assign car-player links
+                let mut car_ids_to_player_ids =
+                    self.frame_parser.car_ids_to_player_ids.borrow_mut();
+                car_ids_to_player_ids.insert(car_actor_id, player_actor_id);
+
+                // Add time-series car data
+                let car_data =
+                    TimeSeriesCarData::from(actor, &attributes, self.frame_parser.replay_version); // attributes passed here as borrowed mut above.
+                let mut players_data = self.frame_parser.players_time_series_car_data.borrow_mut();
+                match players_data.get_mut(&player_wrapped_unique_id) {
+                    Some(player_data) => {
+                        player_data.insert(frame_number, car_data);
+                    }
+                    None => {
+                        let mut player_data =
+                            HashMap::with_capacity(self.frame_parser.frame_count - frame_number);
+                        player_data.insert(frame_number, car_data);
+                        players_data.insert(player_wrapped_unique_id.clone(), player_data);
+                    }
+                }
+
+                // Add demos
+                if let Some(Attribute::Demolish(demolish)) =
+                    attributes.get("TAGame.Car_TA:ReplicatedDemolish")
+                {
+                    let mut demos_data = self.frame_parser.demos_data.borrow_mut();
+                    demos_data.push(DemoData::from(
+                        demolish,
+                        frame_number,
+                        &car_ids_to_player_ids,
+                        &players_wrapped_unique_id,
+                    ));
+                    attributes.remove("TAGame.Car_TA:ReplicatedDemolish");
+                }
             }
         }
     }
@@ -122,19 +130,30 @@ impl TimeSeriesCarData {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DemoData {
     pub frame_number: usize,
-    pub attacker_actor_id: boxcars::ActorId,
-    pub victim_actor_id: boxcars::ActorId,
+    pub attacker_wrapped_unique_id: WrappedUniqueId,
+    pub victim_wrapped_unique_id: WrappedUniqueId,
 }
 
 impl DemoData {
-    pub fn from(demolish: &std::boxed::Box<Demolish>, frame_number: usize) -> Self {
+    pub fn from(
+        demolish: &std::boxed::Box<Demolish>,
+        frame_number: usize,
+        car_ids_to_player_ids: &HashMap<ActorId, ActorId>,
+        players_wrapped_unique_id: &HashMap<ActorId, WrappedUniqueId>,
+    ) -> Self {
         Self {
             frame_number,
-            attacker_actor_id: demolish.attacker,
-            victim_actor_id: demolish.victim,
+            attacker_wrapped_unique_id: players_wrapped_unique_id
+                .get(car_ids_to_player_ids.get(&demolish.attacker).unwrap())
+                .unwrap()
+                .clone(),
+            victim_wrapped_unique_id: players_wrapped_unique_id
+                .get(car_ids_to_player_ids.get(&demolish.victim).unwrap())
+                .unwrap()
+                .clone(),
         }
     }
 }

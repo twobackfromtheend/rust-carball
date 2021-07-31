@@ -1,5 +1,6 @@
+use crate::actor_handlers::WrappedUniqueId;
 use crate::outputs::{DataFramesOutput, MetadataOutput, Player};
-use log::info;
+use log::{info, warn};
 use polars::error::PolarsError;
 use polars::prelude::{
     AnyValue, BooleanChunked, ChunkAgg, ChunkApply, ChunkCast, ChunkCompare, ChunkFilter,
@@ -15,7 +16,7 @@ static PITCH_Y_THIRD_THRESHOLD: f32 = 10240.0 / 3.0 / 2.0;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Stats {
-    pub players: HashMap<i32, PlayerStats>,
+    pub players: HashMap<WrappedUniqueId, PlayerStats>,
 }
 
 impl Stats {
@@ -43,17 +44,24 @@ impl Stats {
             .filter(&gameplay_frames_boolean_mask)
             .unwrap();
 
-        let mut players_stats: HashMap<i32, PlayerStats> = HashMap::new();
+        let mut players_stats: HashMap<WrappedUniqueId, PlayerStats> = HashMap::new();
         for player in metadata.players.iter() {
-            let player_df = data_frames.players.get(&player._actor_id).unwrap();
-            let player_stats = PlayerStats::from(
-                player,
-                &player_df.filter(&gameplay_frames_boolean_mask).unwrap(),
-                &game_df,
-            )
-            .map_err(StatsGenerationError::PlayerStatsError)?;
-            players_stats.insert(player._actor_id, player_stats);
-            info!("{} {:?}", player.name, player_stats);
+            if let Some(player_df) = data_frames.players.get(&player.unique_id) {
+                let player_stats = PlayerStats::from(
+                    player,
+                    &player_df.filter(&gameplay_frames_boolean_mask).unwrap(),
+                    &game_df,
+                )
+                .map_err(StatsGenerationError::PlayerStatsError)?;
+                players_stats.insert(player.unique_id.clone(), player_stats);
+                // info!("{} {:?}", player.name, player_stats);
+            } else {
+                warn!(
+                    "Not generating player stats for {} as missing data frame (unique id: {})",
+                    player.name,
+                    player.unique_id.to_string()
+                )
+            }
         }
         Ok(Self {
             players: players_stats,
@@ -135,6 +143,9 @@ impl PlayerStats {
         let time_in_defending_half;
         let time_in_attacking_third;
         let time_in_defending_third;
+        if player.is_orange == None {
+            dbg!(player);
+        }
         match player.is_orange.unwrap() {
             true => {
                 time_in_attacking_half = time_in_blue_half;

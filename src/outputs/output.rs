@@ -1,6 +1,6 @@
 use crate::actor_handlers::{
     TimeSeriesBallData, TimeSeriesBoostData, TimeSeriesCarData, TimeSeriesGameEventData,
-    TimeSeriesPlayerData,
+    TimeSeriesPlayerData, WrappedUniqueId,
 };
 use crate::cleaner::BoostPickupKind;
 use crate::frame_parser::{FrameParser, TimeSeriesReplayData};
@@ -40,7 +40,7 @@ impl MetadataOutput {
 pub struct DataFramesOutput {
     pub game: DataFrame,
     pub ball: DataFrame,
-    pub players: HashMap<i32, DataFrame>,
+    pub players: HashMap<WrappedUniqueId, DataFrame>,
 }
 
 impl DataFramesOutput {
@@ -60,20 +60,22 @@ impl DataFramesOutput {
 
         // Create player dfs
         let mut player_dfs = HashMap::new();
-        for (actor_id, player_actor) in players_actor.iter() {
+        for (wrapped_unique_id, player_actor) in players_actor.iter() {
             if let Attribute::String(player_name) = player_actor
                 .get("Engine.PlayerReplicationInfo:PlayerName")
                 .expect("Could not find player name")
             {
-                if let Some(time_series_car_data) = players_time_series_car_data.get(actor_id) {
+                if let Some(time_series_car_data) =
+                    players_time_series_car_data.get(wrapped_unique_id)
+                {
                     if let Some(time_series_player_data) =
-                        players_time_series_player_data.get(actor_id)
+                        players_time_series_player_data.get(wrapped_unique_id)
                     {
                         if let Some(time_series_boost_data) =
-                            players_time_series_boost_data.get(actor_id)
+                            players_time_series_boost_data.get(wrapped_unique_id)
                         {
                             if let Some(time_series_boost_pickup_data) =
-                                players_time_series_boost_pickup_data.get(actor_id)
+                                players_time_series_boost_pickup_data.get(wrapped_unique_id)
                             {
                                 let player_df = create_player_df(
                                     time_series_car_data,
@@ -82,7 +84,7 @@ impl DataFramesOutput {
                                     time_series_boost_pickup_data,
                                     frame_count,
                                 )?;
-                                player_dfs.insert(actor_id.0, player_df);
+                                player_dfs.insert(wrapped_unique_id.clone(), player_df);
                             } else {
                                 error!("Failed to generate output for {} due to missing time-series boost pickup data.", player_name);
                             };
