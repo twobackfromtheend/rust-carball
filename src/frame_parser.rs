@@ -252,6 +252,7 @@ impl FrameParser {
                                             time_series_car_data.get(&frame_number),
                                             frame_number,
                                             player_name,
+                                            self.replay_version,
                                         )?,
                                     );
                                 }

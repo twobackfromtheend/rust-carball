@@ -19,6 +19,7 @@ impl BoostPickupKind {
         car_data: Option<&TimeSeriesCarData>,
         frame_number: usize,
         player_name: &str,
+        replay_version: i32,
     ) -> Result<Option<BoostPickupKind>, BoostPickupKindCalculationError> {
         let boost_increase = new_boost_amount - last_boost_amount;
 
@@ -27,7 +28,12 @@ impl BoostPickupKind {
         let boost_increase_is_small = boost_increase < 14.0;
         let boost_increase_is_nearly_small_amount =
             10.0 < boost_increase && boost_increase_is_small;
-        let boost_amount_near_default = (new_boost_amount - (85.0 / 2.55)).abs() < 0.1;
+
+        let boost_amount_near_default = if replay_version >= 7 {
+            (new_boost_amount - (85.0 / 2.55)).abs() < 0.1
+        } else {
+            (new_boost_amount - (85.0 / 2.55)).abs() < 0.1 || (new_boost_amount - 32.9).abs() < 0.05
+        };
 
         if boost_increase_is_small {
             // Small increase. Likely a small boost pad pickup.
