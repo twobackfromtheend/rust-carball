@@ -51,9 +51,18 @@ pub fn bench_analyze(c: &mut Criterion) {
     let carball_parser = CarballParser::parse_file(file_path, false).expect("failed to parse");
     let metadata =
         MetadataOutput::generate_from(&carball_parser.replay, &carball_parser.frame_parser);
-    group.sample_size(50);
+    let data_frames = DataFramesOutput::generate_from(&carball_parser.frame_parser)
+        .expect("failed to generate DataFrames");
+    group.sample_size(20);
+
     group.bench_function("bench-analyze", |b| {
-        b.iter(|| CarballAnalyzer::analyze(black_box(&carball_parser), black_box(&metadata)))
+        b.iter(|| {
+            CarballAnalyzer::analyze(
+                black_box(&carball_parser),
+                black_box(&metadata),
+                black_box(&data_frames),
+            )
+        })
     });
 }
 
@@ -61,7 +70,8 @@ criterion_group!(
     benches,
     bench_parse,
     bench_generate_metadata_output,
-    bench_generate_data_frame_output
+    bench_generate_data_frame_output,
+    bench_analyze,
 );
 
 criterion_main!(benches);

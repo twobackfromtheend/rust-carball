@@ -20,16 +20,17 @@ impl CarballAnalyzer {
     ) -> Result<Self, CarballAnalyzerError> {
         let hits = Hit::find_hits(&carball_parser.frame_parser, metadata)
             .map_err(CarballAnalyzerError::HitDetectionError)?;
-        // let hit_frame_numbers: Vec<usize> = hits.iter().map(|hit| hit.frame_number).collect();
-        // println!("{:?}", hit_frame_numbers);
         let stats = Stats::generate_from(metadata, data_frames)
             .map_err(CarballAnalyzerError::StatsGenerationError)?;
         Ok(Self { hits, stats })
     }
 
-    pub fn write(&self, path: PathBuf) -> Result<(), CarballAnalyzerWriteError> {
+    pub fn write(&self, output_dir: PathBuf) -> Result<(), CarballAnalyzerWriteError> {
+        let mut output_path = output_dir;
+        output_path.push("analyzer.json");
+
         serde_json::to_writer_pretty(
-            &File::create(path).map_err(CarballAnalyzerWriteError::CreateFileError)?,
+            &File::create(output_path).map_err(CarballAnalyzerWriteError::CreateFileError)?,
             &self,
         )
         .map_err(CarballAnalyzerWriteError::WriteJsonError)

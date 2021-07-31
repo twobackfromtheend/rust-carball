@@ -35,10 +35,9 @@ struct Opt {
 fn main() {
     setup_logging();
 
-    println!("Hello, world!");
-
     let opt = Opt::from_args();
-    dbg!(&opt);
+    // dbg!(&opt);
+    info!("{:?}", &opt);
 
     let carball_parser = CarballParser::parse_file(opt.input, true).expect("Failed to parse.");
 
@@ -62,7 +61,8 @@ fn main() {
         }
     }
 
-    let parse_output_writer = ParseOutputWriter::new(opt.output_dir, opt.data_frame_output_format);
+    let parse_output_writer =
+        ParseOutputWriter::new(opt.output_dir.clone(), opt.data_frame_output_format);
     if opt.skip_write_data_frames {
         parse_output_writer
             .write_outputs(Some(&metadata), None)
@@ -72,9 +72,13 @@ fn main() {
             .write_outputs(Some(&metadata), data_frames.as_ref())
             .expect("Failed to write outputs.");
     }
+
     if !opt.skip_data_frames && !opt.skip_analysis {
-        CarballAnalyzer::analyze(&carball_parser, &metadata, &data_frames.unwrap())
+        let analyzer = CarballAnalyzer::analyze(&carball_parser, &metadata, &data_frames.unwrap())
             .expect("Failed to analyze.");
+        analyzer
+            .write(opt.output_dir)
+            .expect("Failed to write analysis.");
     }
 
     info!("fin");
@@ -89,9 +93,9 @@ fn setup_logging() {
     )])
     .unwrap();
 
-    println!("Testing logging");
-    debug!("debug");
-    info!("info");
-    warn!("warn");
-    error!("error");
+    // println!("Testing logging");
+    // debug!("debug");
+    // info!("info");
+    // warn!("warn");
+    // error!("error");
 }
