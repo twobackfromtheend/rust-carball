@@ -2,6 +2,7 @@ use crate::actor_handlers::{ActorHandler, RigidBodyData, WrappedUniqueId};
 use crate::frame_parser::{Actor, FrameParser};
 use boxcars::attributes::Demolish;
 use boxcars::{ActorId, Attribute};
+use log::error;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -44,23 +45,25 @@ impl<'a> ActorHandler<'a> for CarHandler<'a> {
                         players_data.insert(player_wrapped_unique_id.clone(), player_data);
                     }
                 }
-
-                // Add demos
-                if let Some(Attribute::Demolish(demolish)) =
-                    attributes.get("TAGame.Car_TA:ReplicatedDemolish")
-                {
-                    let mut demos_data = self.frame_parser.demos_data.borrow_mut();
-                    if let Some(demo_data) = DemoData::from(
-                        demolish,
-                        frame_number,
-                        &car_ids_to_player_ids,
-                        &players_wrapped_unique_id,
-                    ) {
-                        demos_data.push(demo_data);
-                    }
-                    attributes.remove("TAGame.Car_TA:ReplicatedDemolish");
-                }
             }
+        }
+
+        // Add demos
+        if let Some(Attribute::Demolish(demolish)) =
+            attributes.get("TAGame.Car_TA:ReplicatedDemolish")
+        {
+            let players_wrapped_unique_id = self.frame_parser.players_wrapped_unique_id.borrow();
+            let car_ids_to_player_ids = self.frame_parser.car_ids_to_player_ids.borrow();
+            let mut demos_data = self.frame_parser.demos_data.borrow_mut();
+            if let Some(demo_data) = DemoData::from(
+                demolish,
+                frame_number,
+                &car_ids_to_player_ids,
+                &players_wrapped_unique_id,
+            ) {
+                demos_data.push(demo_data);
+            }
+            attributes.remove("TAGame.Car_TA:ReplicatedDemolish");
         }
     }
 }
@@ -149,6 +152,9 @@ impl DemoData {
         if !demolish.attacker_flag {
             // Attacker flag can be false and demolish.attacker == ActorId(-1).
             // I assume this is not a player-induced demolish. Could be goal explosion or goal reset or change team.
+            return None;
+        } else if demolish.attacker.0 == -1 {
+            error!("Demo on frame {} where attacker is -1.", frame_number);
             return None;
         }
         Some(Self {
