@@ -1,3 +1,4 @@
+use crate::analysis::GameplayPeriod;
 use crate::analysis::{Hit, HitDetectionError, Stats, StatsGenerationError};
 use crate::outputs::{DataFramesOutput, MetadataOutput};
 use crate::CarballParser;
@@ -10,6 +11,7 @@ use thiserror::Error;
 pub struct CarballAnalyzer {
     pub hits: Vec<Hit>,
     pub stats: Stats,
+    pub gameplay_periods: Vec<GameplayPeriod>,
 }
 
 impl CarballAnalyzer {
@@ -20,9 +22,16 @@ impl CarballAnalyzer {
     ) -> Result<Self, CarballAnalyzerError> {
         let hits = Hit::find_hits(&carball_parser.frame_parser, metadata)
             .map_err(CarballAnalyzerError::HitDetectionError)?;
-        let stats = Stats::generate_from(metadata, data_frames)
+
+        let gameplay_periods = GameplayPeriod::get_periods(metadata, data_frames);
+
+        let stats = Stats::generate_from(metadata, data_frames, &gameplay_periods)
             .map_err(CarballAnalyzerError::StatsGenerationError)?;
-        Ok(Self { hits, stats })
+        Ok(Self {
+            hits,
+            stats,
+            gameplay_periods,
+        })
     }
 
     pub fn write(&self, output_dir: PathBuf) -> Result<(), CarballAnalyzerWriteError> {
