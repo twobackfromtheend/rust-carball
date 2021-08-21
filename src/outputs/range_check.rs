@@ -48,18 +48,18 @@ impl RangeChecker {
             "pos_x".to_string() => Range {
                 min: -PITCH_SIDE_WALL + BALL_RADIUS - 30.0,
                 max: PITCH_SIDE_WALL - BALL_RADIUS + 30.0,
-                buffer: 30.0,
+                buffer: 60.0,
             },
             "pos_y".to_string() => Range {
                 // Higher buffer due to ball being able to enter goal by a lag-dependent amount.
                 min: -(PITCH_BACK_WALL + PITCH_GOAL_DEPTH - BALL_RADIUS) - 30.0,
                 max: PITCH_BACK_WALL + PITCH_GOAL_DEPTH - BALL_RADIUS + 30.0,
-                buffer: PITCH_GOAL_DEPTH + 30.0,
+                buffer: PITCH_GOAL_DEPTH + 60.0,
             },
             "pos_z".to_string() => Range {
                 min: PITCH_FLOOR + BALL_RADIUS - 30.0,
                 max: PITCH_CEILING - BALL_RADIUS + 30.0,
-                buffer: 30.0,
+                buffer: 60.0,
             },
             "vel_x".to_string() => Range {
                 min: -BALL_MAX_SPEED,

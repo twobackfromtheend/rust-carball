@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use thiserror::Error;
 
-static MAX_HIT_CAR_DISTANCE: f32 = 400.0;
+static MAX_HIT_CAR_DISTANCE: f32 = 500.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum IsHitConclusion {
@@ -158,7 +158,7 @@ impl Hit {
                                             _ => &empty_vec,
                                         };
 
-                                        let potential_hit_player_datas: HashMap<
+                                        let potential_hit_player_previous_frame_datas: HashMap<
                                             WrappedUniqueId,
                                             Option<&TimeSeriesCarData>,
                                         > = potential_hit_players
@@ -169,7 +169,7 @@ impl Hit {
                                                     players_time_series_car_data
                                                         .get(wrapped_unique_id)
                                                         .map(|time_series_car_data| {
-                                                            time_series_car_data.get(&frame_number)
+                                                            time_series_car_data.get(&(frame_number - 1))
                                                         })
                                                         .flatten(),
                                                 )
@@ -177,8 +177,8 @@ impl Hit {
                                             .collect();
 
                                         let player_distances = get_player_distances(
-                                            ball_data,
-                                            potential_hit_player_datas,
+                                            previous_frame_ball_data_value,
+                                            potential_hit_player_previous_frame_datas,
                                         );
                                         let nearest_player_and_distance =
                                             get_nearest_player(player_distances);
@@ -187,24 +187,25 @@ impl Hit {
                                             if let Some((nearest_player, nearest_distance)) =
                                                 nearest_player_and_distance
                                             {
-                                                hits.push(Hit {
-                                                    frame_number,
-                                                    player_unique_id: nearest_player.clone(),
-                                                    player_distance: nearest_distance,
-                                                    _debug_info: HitDebugInfo {
-                                                        hit_team_num_changed,
-                                                        ang_vel_changed,
-                                                        predicted_bounce,
-                                                        speed_increased,
-                                                    },
-                                                });
                                                 if nearest_distance > MAX_HIT_CAR_DISTANCE {
                                                     warn!(
-                                                        "Found hit on frame {} where player ({}) is far from ball: {} uu", 
+                                                        "Found hit on frame {} where nearest player ({}) is far from ball: {} uu. Hit is ignored.", 
                                                         frame_number,
                                                         nearest_player.to_string(), 
                                                         nearest_distance,
                                                     );
+                                                } else {
+                                                    hits.push(Hit {
+                                                        frame_number,
+                                                        player_unique_id: nearest_player.clone(),
+                                                        player_distance: nearest_distance,
+                                                        _debug_info: HitDebugInfo {
+                                                            hit_team_num_changed,
+                                                            ang_vel_changed,
+                                                            predicted_bounce,
+                                                            speed_increased,
+                                                        },
+                                                    });
                                                 }
                                             } else {
                                                 error!("Failed to find nearest player on frame {} for hit.", frame_number);
