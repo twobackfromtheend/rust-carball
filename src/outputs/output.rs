@@ -9,8 +9,7 @@ use boxcars::{Attribute, Replay};
 use log::error;
 use polars::error::PolarsError;
 use polars::prelude::{
-    BooleanChunked, DataFrame, Float32Chunked, Int32Chunked, IntoSeries, NewChunkedArray,
-    UInt8Chunked,
+    DataFrame, Float32Chunked, Int32Chunked, IntoSeries, NewChunkedArray, UInt8Chunked,
 };
 use serde::Serialize;
 use std::collections::HashMap;
@@ -139,7 +138,7 @@ fn create_player_df(
     frame_count: usize,
 ) -> Result<DataFrame, OutputError> {
     // Car data
-    let mut is_sleeping: Vec<Option<bool>> = vec![None; frame_count];
+    let mut is_sleeping: Vec<Option<u8>> = vec![None; frame_count];
     let mut pos_x: Vec<Option<f32>> = vec![None; frame_count];
     let mut pos_y: Vec<Option<f32>> = vec![None; frame_count];
     let mut pos_z: Vec<Option<f32>> = vec![None; frame_count];
@@ -166,14 +165,14 @@ fn create_player_df(
     let mut ping: Vec<Option<u8>> = vec![None; frame_count];
 
     // Boost data
-    let mut boost_is_active: Vec<Option<bool>> = vec![None; frame_count];
+    let mut boost_is_active: Vec<Option<u8>> = vec![None; frame_count];
     let mut boost_amount: Vec<Option<f32>> = vec![None; frame_count];
 
     // Boost pickup data
     let mut boost_pickup: Vec<Option<u8>> = vec![None; frame_count];
 
     for (frame_number, data) in time_series_car_data.iter() {
-        is_sleeping[*frame_number] = data.is_sleeping;
+        is_sleeping[*frame_number] = data.is_sleeping.map(u8::from);
         pos_x[*frame_number] = data.pos_x;
         pos_y[*frame_number] = data.pos_y;
         pos_z[*frame_number] = data.pos_z;
@@ -200,7 +199,7 @@ fn create_player_df(
         ping[*frame_number] = data.ping;
     }
     for (frame_number, data) in time_series_boost_data.iter() {
-        boost_is_active[*frame_number] = data.boost_is_active;
+        boost_is_active[*frame_number] = data.boost_is_active.map(u8::from);
         boost_amount[*frame_number] = data.boost_amount;
     }
     for (frame_number, _boost_pickup) in time_series_boost_pickup_data.iter() {
@@ -212,7 +211,7 @@ fn create_player_df(
     }
 
     DataFrame::new(vec![
-        BooleanChunked::new_from_opt_slice("is_sleeping", &is_sleeping).into_series(),
+        UInt8Chunked::new_from_opt_slice("is_sleeping", &is_sleeping).into_series(),
         Float32Chunked::new_from_opt_slice("pos_x", &pos_x).into_series(),
         Float32Chunked::new_from_opt_slice("pos_y", &pos_y).into_series(),
         Float32Chunked::new_from_opt_slice("pos_z", &pos_z).into_series(),
@@ -235,7 +234,7 @@ fn create_player_df(
         Int32Chunked::new_from_opt_slice("match_shots", &match_shots).into_series(),
         Int32Chunked::new_from_opt_slice("team", &team).into_series(),
         UInt8Chunked::new_from_opt_slice("ping", &ping).into_series(),
-        BooleanChunked::new_from_opt_slice("boost_is_active", &boost_is_active).into_series(),
+        UInt8Chunked::new_from_opt_slice("boost_is_active", &boost_is_active).into_series(),
         Float32Chunked::new_from_opt_slice("boost_amount", &boost_amount).into_series(),
         UInt8Chunked::new_from_opt_slice("boost_pickup", &boost_pickup).into_series(),
     ])
@@ -246,7 +245,7 @@ fn create_ball_df(
     time_series_ball_data: &HashMap<usize, TimeSeriesBallData>,
     frame_count: usize,
 ) -> Result<DataFrame, OutputError> {
-    let mut is_sleeping: Vec<Option<bool>> = vec![None; frame_count];
+    let mut is_sleeping: Vec<Option<u8>> = vec![None; frame_count];
     let mut pos_x: Vec<Option<f32>> = vec![None; frame_count];
     let mut pos_y: Vec<Option<f32>> = vec![None; frame_count];
     let mut pos_z: Vec<Option<f32>> = vec![None; frame_count];
@@ -262,7 +261,7 @@ fn create_ball_df(
     let mut hit_team_num: Vec<Option<u8>> = vec![None; frame_count];
 
     for (frame_number, data) in time_series_ball_data.iter() {
-        is_sleeping[*frame_number] = data.is_sleeping;
+        is_sleeping[*frame_number] = data.is_sleeping.map(u8::from);
         pos_x[*frame_number] = data.pos_x;
         pos_y[*frame_number] = data.pos_y;
         pos_z[*frame_number] = data.pos_z;
@@ -276,11 +275,10 @@ fn create_ball_df(
         ang_vel_y[*frame_number] = data.ang_vel_y;
         ang_vel_z[*frame_number] = data.ang_vel_z;
         hit_team_num[*frame_number] = data.hit_team_num;
-        // dbg!((data.rot_pitch, data.rot_yaw, data.rot_roll));
     }
 
     DataFrame::new(vec![
-        BooleanChunked::new_from_opt_slice("is_sleeping", &is_sleeping).into_series(),
+        UInt8Chunked::new_from_opt_slice("is_sleeping", &is_sleeping).into_series(),
         Float32Chunked::new_from_opt_slice("pos_x", &pos_x).into_series(),
         Float32Chunked::new_from_opt_slice("pos_y", &pos_y).into_series(),
         Float32Chunked::new_from_opt_slice("pos_z", &pos_z).into_series(),
@@ -308,15 +306,15 @@ fn create_game_df(
 
     let mut seconds_remaining: Vec<Option<i32>> = vec![None; frame_count];
     let mut replicated_game_state_time_remaining: Vec<Option<i32>> = vec![None; frame_count];
-    let mut is_overtime: Vec<Option<bool>> = vec![None; frame_count];
-    let mut ball_has_been_hit: Vec<Option<bool>> = vec![None; frame_count];
+    let mut is_overtime: Vec<Option<u8>> = vec![None; frame_count];
+    let mut ball_has_been_hit: Vec<Option<u8>> = vec![None; frame_count];
 
     for (frame_number, data) in time_series_game_event_data.iter() {
         seconds_remaining[*frame_number] = data.seconds_remaining;
         replicated_game_state_time_remaining[*frame_number] =
             data.replicated_game_state_time_remaining;
-        is_overtime[*frame_number] = data.is_overtime;
-        ball_has_been_hit[*frame_number] = data.ball_has_been_hit;
+        is_overtime[*frame_number] = data.is_overtime.map(u8::from);
+        ball_has_been_hit[*frame_number] = data.ball_has_been_hit.map(u8::from);
     }
     for (frame_number, data) in time_series_replay_data.iter() {
         time[*frame_number] = Some(data.time);
@@ -332,8 +330,8 @@ fn create_game_df(
             &replicated_game_state_time_remaining,
         )
         .into_series(),
-        BooleanChunked::new_from_opt_slice("is_overtime", &is_overtime).into_series(),
-        BooleanChunked::new_from_opt_slice("ball_has_been_hit", &ball_has_been_hit).into_series(),
+        UInt8Chunked::new_from_opt_slice("is_overtime", &is_overtime).into_series(),
+        UInt8Chunked::new_from_opt_slice("ball_has_been_hit", &ball_has_been_hit).into_series(),
     ])
     .map_err(OutputError::CreateDataFrameError)
 }
