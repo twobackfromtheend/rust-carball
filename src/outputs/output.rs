@@ -145,9 +145,10 @@ fn create_player_df(
     let mut vel_x: Vec<Option<f32>> = vec![None; frame_count];
     let mut vel_y: Vec<Option<f32>> = vec![None; frame_count];
     let mut vel_z: Vec<Option<f32>> = vec![None; frame_count];
-    let mut rot_pitch: Vec<Option<f32>> = vec![None; frame_count];
-    let mut rot_yaw: Vec<Option<f32>> = vec![None; frame_count];
-    let mut rot_roll: Vec<Option<f32>> = vec![None; frame_count];
+    let mut quat_w: Vec<Option<f32>> = vec![None; frame_count];
+    let mut quat_x: Vec<Option<f32>> = vec![None; frame_count];
+    let mut quat_y: Vec<Option<f32>> = vec![None; frame_count];
+    let mut quat_z: Vec<Option<f32>> = vec![None; frame_count];
     let mut ang_vel_x: Vec<Option<f32>> = vec![None; frame_count];
     let mut ang_vel_y: Vec<Option<f32>> = vec![None; frame_count];
     let mut ang_vel_z: Vec<Option<f32>> = vec![None; frame_count];
@@ -179,9 +180,10 @@ fn create_player_df(
         vel_x[*frame_number] = data.vel_x;
         vel_y[*frame_number] = data.vel_y;
         vel_z[*frame_number] = data.vel_z;
-        rot_pitch[*frame_number] = data.rot_pitch;
-        rot_yaw[*frame_number] = data.rot_yaw;
-        rot_roll[*frame_number] = data.rot_roll;
+        quat_w[*frame_number] = data.quat_w;
+        quat_x[*frame_number] = data.quat_x;
+        quat_y[*frame_number] = data.quat_y;
+        quat_z[*frame_number] = data.quat_z;
         ang_vel_x[*frame_number] = data.ang_vel_x;
         ang_vel_y[*frame_number] = data.ang_vel_y;
         ang_vel_z[*frame_number] = data.ang_vel_z;
@@ -218,9 +220,10 @@ fn create_player_df(
         Float32Chunked::new_from_opt_slice("vel_x", &vel_x).into_series(),
         Float32Chunked::new_from_opt_slice("vel_y", &vel_y).into_series(),
         Float32Chunked::new_from_opt_slice("vel_z", &vel_z).into_series(),
-        Float32Chunked::new_from_opt_slice("rot_pitch", &rot_pitch).into_series(),
-        Float32Chunked::new_from_opt_slice("rot_yaw", &rot_yaw).into_series(),
-        Float32Chunked::new_from_opt_slice("rot_roll", &rot_roll).into_series(),
+        Float32Chunked::new_from_opt_slice("quat_w", &quat_w).into_series(),
+        Float32Chunked::new_from_opt_slice("quat_x", &quat_x).into_series(),
+        Float32Chunked::new_from_opt_slice("quat_y", &quat_y).into_series(),
+        Float32Chunked::new_from_opt_slice("quat_z", &quat_z).into_series(),
         Float32Chunked::new_from_opt_slice("ang_vel_x", &ang_vel_x).into_series(),
         Float32Chunked::new_from_opt_slice("ang_vel_y", &ang_vel_y).into_series(),
         Float32Chunked::new_from_opt_slice("ang_vel_z", &ang_vel_z).into_series(),
@@ -252,9 +255,10 @@ fn create_ball_df(
     let mut vel_x: Vec<Option<f32>> = vec![None; frame_count];
     let mut vel_y: Vec<Option<f32>> = vec![None; frame_count];
     let mut vel_z: Vec<Option<f32>> = vec![None; frame_count];
-    let mut rot_pitch: Vec<Option<f32>> = vec![None; frame_count];
-    let mut rot_yaw: Vec<Option<f32>> = vec![None; frame_count];
-    let mut rot_roll: Vec<Option<f32>> = vec![None; frame_count];
+    let mut quat_w: Vec<Option<f32>> = vec![None; frame_count];
+    let mut quat_x: Vec<Option<f32>> = vec![None; frame_count];
+    let mut quat_y: Vec<Option<f32>> = vec![None; frame_count];
+    let mut quat_z: Vec<Option<f32>> = vec![None; frame_count];
     let mut ang_vel_x: Vec<Option<f32>> = vec![None; frame_count];
     let mut ang_vel_y: Vec<Option<f32>> = vec![None; frame_count];
     let mut ang_vel_z: Vec<Option<f32>> = vec![None; frame_count];
@@ -268,9 +272,10 @@ fn create_ball_df(
         vel_x[*frame_number] = data.vel_x;
         vel_y[*frame_number] = data.vel_y;
         vel_z[*frame_number] = data.vel_z;
-        rot_pitch[*frame_number] = data.rot_pitch;
-        rot_yaw[*frame_number] = data.rot_yaw;
-        rot_roll[*frame_number] = data.rot_roll;
+        quat_w[*frame_number] = data.quat_w;
+        quat_x[*frame_number] = data.quat_x;
+        quat_y[*frame_number] = data.quat_y;
+        quat_z[*frame_number] = data.quat_z;
         ang_vel_x[*frame_number] = data.ang_vel_x;
         ang_vel_y[*frame_number] = data.ang_vel_y;
         ang_vel_z[*frame_number] = data.ang_vel_z;
@@ -285,9 +290,10 @@ fn create_ball_df(
         Float32Chunked::new_from_opt_slice("vel_x", &vel_x).into_series(),
         Float32Chunked::new_from_opt_slice("vel_y", &vel_y).into_series(),
         Float32Chunked::new_from_opt_slice("vel_z", &vel_z).into_series(),
-        Float32Chunked::new_from_opt_slice("rot_pitch", &rot_pitch).into_series(),
-        Float32Chunked::new_from_opt_slice("rot_yaw", &rot_yaw).into_series(),
-        Float32Chunked::new_from_opt_slice("rot_roll", &rot_roll).into_series(),
+        Float32Chunked::new_from_opt_slice("quat_w", &quat_w).into_series(),
+        Float32Chunked::new_from_opt_slice("quat_x", &quat_x).into_series(),
+        Float32Chunked::new_from_opt_slice("quat_y", &quat_y).into_series(),
+        Float32Chunked::new_from_opt_slice("quat_z", &quat_z).into_series(),
         Float32Chunked::new_from_opt_slice("ang_vel_x", &ang_vel_x).into_series(),
         Float32Chunked::new_from_opt_slice("ang_vel_y", &ang_vel_y).into_series(),
         Float32Chunked::new_from_opt_slice("ang_vel_z", &ang_vel_z).into_series(),

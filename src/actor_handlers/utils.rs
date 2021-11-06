@@ -13,9 +13,10 @@ pub struct RigidBodyData {
     pub vel_x: Option<f32>,
     pub vel_y: Option<f32>,
     pub vel_z: Option<f32>,
-    pub rot_pitch: Option<f32>,
-    pub rot_yaw: Option<f32>,
-    pub rot_roll: Option<f32>,
+    pub quat_w: Option<f32>,
+    pub quat_x: Option<f32>,
+    pub quat_y: Option<f32>,
+    pub quat_z: Option<f32>,
     pub ang_vel_x: Option<f32>,
     pub ang_vel_y: Option<f32>,
     pub ang_vel_z: Option<f32>,
@@ -52,9 +53,10 @@ impl RigidBodyData {
         // let mut rot_pitch = initial_rotation.pitch.map(|rot| rot as f32);
         // let mut rot_yaw = initial_rotation.yaw.map(|rot| rot as f32);
         // let mut rot_roll = initial_rotation.roll.map(|rot| rot as f32);
-        let mut rot_pitch = None;
-        let mut rot_yaw = None;
-        let mut rot_roll = None;
+        let mut quat_w = None;
+        let mut quat_x = None;
+        let mut quat_y = None;
+        let mut quat_z = None;
         let mut ang_vel_x = None;
         let mut ang_vel_y = None;
         let mut ang_vel_z = None;
@@ -85,11 +87,10 @@ impl RigidBodyData {
                         vel_y = Some(linear_velocity.y * 10.0);
                         vel_z = Some(linear_velocity.z * 10.0);
                     }
-
-                    let eulers = euler_from_quat(rb_state.rotation);
-                    rot_pitch = Some(eulers.0);
-                    rot_yaw = Some(eulers.1);
-                    rot_roll = Some(eulers.2);
+                    quat_w = Some(rb_state.rotation.w);
+                    quat_x = Some(rb_state.rotation.x);
+                    quat_y = Some(rb_state.rotation.y);
+                    quat_z = Some(rb_state.rotation.z);
 
                     // Dividing by 100 to result in radians/s
                     ang_vel_x = Some(angular_velocity.x / 100.0);
@@ -107,9 +108,10 @@ impl RigidBodyData {
             vel_x,
             vel_y,
             vel_z,
-            rot_pitch,
-            rot_yaw,
-            rot_roll,
+            quat_w,
+            quat_x,
+            quat_y,
+            quat_z,
             ang_vel_x,
             ang_vel_y,
             ang_vel_z,
