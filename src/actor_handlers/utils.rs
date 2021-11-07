@@ -1,8 +1,9 @@
 use crate::frame_parser::Actor;
 use boxcars::attributes::{RemoteId, UniqueId};
-use boxcars::{Attribute, Quaternion};
+use boxcars::Attribute;
 use serde::{Serialize, Serializer};
 use std::collections::{hash_map::DefaultHasher, HashMap};
+use std::fmt;
 use std::hash::{Hash, Hasher};
 
 pub struct RigidBodyData {
@@ -119,7 +120,7 @@ impl RigidBodyData {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct WrappedUniqueId(UniqueId);
 
 impl WrappedUniqueId {
@@ -174,13 +175,19 @@ impl Hash for WrappedUniqueId {
     }
 }
 
+impl PartialEq for WrappedUniqueId {
+    fn eq(&self, other: &WrappedUniqueId) -> bool {
+        // TODO: Replace with accurate impl (referencing hash impl).
+        self.0.remote_id == other.0.remote_id
+    }
+}
 impl Eq for WrappedUniqueId {}
 
-impl WrappedUniqueId {
-    pub fn to_string(&self) -> String {
+impl fmt::Display for WrappedUniqueId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut hasher = DefaultHasher::new();
         self.hash(&mut hasher);
-        hasher.finish().to_string()
+        write!(f, "{}", hasher.finish().to_string())
     }
 }
 

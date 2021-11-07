@@ -34,7 +34,7 @@ impl<'a> ActorHandler<'a> for CarHandler<'a> {
                 let car_data =
                     TimeSeriesCarData::from(actor, &attributes, self.frame_parser.replay_version); // attributes passed here as borrowed mut above.
                 let mut players_data = self.frame_parser.players_time_series_car_data.borrow_mut();
-                match players_data.get_mut(&player_wrapped_unique_id) {
+                match players_data.get_mut(player_wrapped_unique_id) {
                     Some(player_data) => {
                         player_data.insert(frame_number, car_data);
                     }

@@ -132,7 +132,7 @@ impl FrameParser {
 
             // Handle deleted actors first
             for deleted_actor_id in &frame.deleted_actors {
-                if actors.remove(&deleted_actor_id).is_none() {
+                if actors.remove(deleted_actor_id).is_none() {
                     warn!(
                         "Could not find actor {} to delete on frame {}.",
                         deleted_actor_id, frame_number
@@ -154,7 +154,7 @@ impl FrameParser {
                 let actor_id = new_actor.actor_id;
                 actors.insert(actor_id, Actor::new(new_actor));
                 if let Some(handler) =
-                    handler_factory.get_handler(new_actor.object_id, &replay_objects)
+                    handler_factory.get_handler(new_actor.object_id, replay_objects)
                 {
                     let _actor_handlers = actor_handlers
                         .entry(handler.priority())
@@ -169,7 +169,7 @@ impl FrameParser {
                 let actor = actors
                     .get_mut(&actor_id)
                     .expect("Updated actor does not exist.");
-                actor.update_attribute(updated_attribute, &replay_objects);
+                actor.update_attribute(updated_attribute, replay_objects);
             }
 
             // Stop data collection after goal

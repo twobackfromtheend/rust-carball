@@ -23,7 +23,7 @@ impl Stats {
     pub fn generate_from(
         metadata: &MetadataOutput,
         data_frames: &DataFramesOutput,
-        gameplay_periods: &Vec<GameplayPeriod>,
+        gameplay_periods: &[GameplayPeriod],
     ) -> Result<Self, StatsGenerationError> {
         let mut gameplay_frames_set = HashSet::new();
         for gameplay_period in gameplay_periods.iter() {
