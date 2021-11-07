@@ -1,10 +1,8 @@
 use crate::outputs::DataFramesOutput;
 use log::error;
 use polars::series::Series;
-use std::f32::consts::PI;
-use thiserror::Error;
-
 use std::collections::HashMap;
+use thiserror::Error;
 
 /// Creates a map/set from an iterator, emulating a map/set literal syntax.
 /// Taken from https://stackoverflow.com/a/27582993
@@ -77,20 +75,25 @@ impl RangeChecker {
                 max: BALL_MAX_SPEED,
                 buffer: BALL_MAX_SPEED  * 5.0 / 6.0,
             },
-            "rot_pitch".to_string() => Range {
-                min: -PI / 2.0,
-                max: PI / 2.0,
-                buffer: 0.1,
+            "quat_w".to_string() => Range {
+                min: -1.0,
+                max: 1.0,
+                buffer: 0.05,
             },
-            "rot_yaw".to_string() => Range {
-                min: -PI,
-                max: PI ,
-                buffer: 0.1,
+            "quat_x".to_string() => Range {
+                min: -1.0,
+                max: 1.0,
+                buffer: 0.05,
             },
-            "rot_roll".to_string() => Range {
-                min: -PI,
-                max: PI ,
-                buffer: 0.1,
+            "quat_y".to_string() => Range {
+                min: -1.0,
+                max: 1.0,
+                buffer: 0.05,
+            },
+            "quat_z".to_string() => Range {
+                min: -1.0,
+                max: 1.0,
+                buffer: 0.05,
             },
         };
         let player = collection! {
@@ -124,20 +127,25 @@ impl RangeChecker {
                 max: CAR_MAX_SPEED,
                 buffer: CAR_MAX_SPEED / 2.0,
             },
-            "rot_pitch".to_string() => Range {
-                min: -PI / 2.0,
-                max: PI / 2.0,
-                buffer: 0.2,
+            "quat_w".to_string() => Range {
+                min: -1.0,
+                max: 1.0,
+                buffer: 0.05,
             },
-            "rot_yaw".to_string() => Range {
-                min: -PI,
-                max: PI ,
-                buffer: 0.1,
+            "quat_x".to_string() => Range {
+                min: -1.0,
+                max: 1.0,
+                buffer: 0.05,
             },
-            "rot_roll".to_string() => Range {
-                min: -PI,
-                max: PI ,
-                buffer: 0.1,
+            "quat_y".to_string() => Range {
+                min: -1.0,
+                max: 1.0,
+                buffer: 0.05,
+            },
+            "quat_z".to_string() => Range {
+                min: -1.0,
+                max: 1.0,
+                buffer: 0.05,
             },
         };
         Self { ball, player }
@@ -236,8 +244,8 @@ mod tests {
             ColorChoice::Auto,
         )])
         .unwrap();
-        // let file_path = PathBuf::from("assets\\replays\\ranked-3s.replay");
-        let file_path = PathBuf::from("assets\\replays\\soccar-lan.replay");
+        let file_path = PathBuf::from("assets\\replays\\ranked-3s.replay");
+        // let file_path = PathBuf::from("assets\\replays\\soccar-lan.replay");
         let carball_parser = CarballParser::parse_file(file_path, false).expect("failed to parse");
         let data_frames = DataFramesOutput::generate_from(&carball_parser.frame_parser).unwrap();
 
