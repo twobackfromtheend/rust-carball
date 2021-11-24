@@ -1,5 +1,5 @@
 use crate::outputs::DataFramesOutput;
-use log::error;
+use log::{error, info};
 use polars::series::Series;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -76,24 +76,24 @@ impl RangeChecker {
                 buffer: BALL_MAX_SPEED  * 5.0 / 6.0,
             },
             "quat_w".to_string() => Range {
-                min: -1.0,
-                max: 1.0,
-                buffer: 0.05,
+                min: -1.0 * 1.001,
+                max: 1.0 * 1.001,
+                buffer: 0.5,
             },
             "quat_x".to_string() => Range {
-                min: -1.0,
-                max: 1.0,
-                buffer: 0.05,
+                min: -1.0 * 1.001,
+                max: 1.0 * 1.001,
+                buffer: 0.5,
             },
             "quat_y".to_string() => Range {
-                min: -1.0,
-                max: 1.0,
-                buffer: 0.05,
+                min: -1.0 * 1.001,
+                max: 1.0 * 1.001,
+                buffer: 0.5,
             },
             "quat_z".to_string() => Range {
-                min: -1.0,
-                max: 1.0,
-                buffer: 0.05,
+                min: -1.0 * 1.001,
+                max: 1.0 * 1.001,
+                buffer: 0.5,
             },
         };
         let player = collection! {
@@ -128,24 +128,24 @@ impl RangeChecker {
                 buffer: CAR_MAX_SPEED / 2.0,
             },
             "quat_w".to_string() => Range {
-                min: -1.0,
-                max: 1.0,
-                buffer: 0.05,
+                min: -1.0 * 1.001,
+                max: 1.0 * 1.001,
+                buffer: 0.5,
             },
             "quat_x".to_string() => Range {
-                min: -1.0,
-                max: 1.0,
-                buffer: 0.05,
+                min: -1.0 * 1.001,
+                max: 1.0 * 1.001,
+                buffer: 0.5,
             },
             "quat_y".to_string() => Range {
-                min: -1.0,
-                max: 1.0,
-                buffer: 0.05,
+                min: -1.0 * 1.001,
+                max: 1.0 * 1.001,
+                buffer: 0.5,
             },
             "quat_z".to_string() => Range {
-                min: -1.0,
-                max: 1.0,
-                buffer: 0.05,
+                min: -1.0 * 1.001,
+                max: 1.0 * 1.001,
+                buffer: 0.5,
             },
         };
         Self { ball, player }
@@ -197,6 +197,10 @@ impl Range {
         let max = series
             .max::<f32>()
             .ok_or_else(|| RangeCheckerError::ArithmeticError(format!("{} max", label)))?;
+        info!(
+            "{}. found (min, max): ({}, {}), reference (min, max): ({}, {})",
+            label, min, max, self.min, self.max,
+        );
         if min < self.min || max > self.max {
             error!(
                 "{} failed range check. found (min, max): ({}, {}), reference (min, max): ({}, {})",
@@ -204,6 +208,7 @@ impl Range {
             );
             return Ok(false);
         }
+
         if !is_close(min, self.min, self.buffer) {
             error!(
                 "{} min failed range check. found: {}, reference: {}, buffer: {}",
@@ -244,9 +249,11 @@ mod tests {
             ColorChoice::Auto,
         )])
         .unwrap();
-        let file_path = PathBuf::from("assets\\replays\\ranked-3s.replay");
+        // let file_path = PathBuf::from("assets\\replays\\ranked-3s.replay");
+        let file_path = PathBuf::from("assets\\replays\\rlcs-season-5-final.replay");
         // let file_path = PathBuf::from("assets\\replays\\soccar-lan.replay");
         let carball_parser = CarballParser::parse_file(file_path, false).expect("failed to parse");
+        dbg!(&carball_parser.frame_parser.replay_version);
         let data_frames = DataFramesOutput::generate_from(&carball_parser.frame_parser).unwrap();
 
         let range_checker = RangeChecker::new();

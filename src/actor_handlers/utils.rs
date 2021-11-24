@@ -1,6 +1,7 @@
 use crate::frame_parser::Actor;
 use boxcars::attributes::{RemoteId, UniqueId};
 use boxcars::Attribute;
+use log::warn;
 use serde::{Serialize, Serializer};
 use std::collections::{hash_map::DefaultHasher, HashMap};
 use std::fmt;
@@ -88,10 +89,28 @@ impl RigidBodyData {
                         vel_y = Some(linear_velocity.y * 10.0);
                         vel_z = Some(linear_velocity.z * 10.0);
                     }
-                    quat_w = Some(rb_state.rotation.w);
-                    quat_x = Some(rb_state.rotation.x);
-                    quat_y = Some(rb_state.rotation.y);
-                    quat_z = Some(rb_state.rotation.z);
+                    if replay_version >= 8 {
+                        quat_w = Some(rb_state.rotation.w);
+                        quat_x = Some(rb_state.rotation.x);
+                        quat_y = Some(rb_state.rotation.y);
+                        quat_z = Some(rb_state.rotation.z);
+                    } else {
+                        if rb_state.rotation.w != 0.0 {
+                            warn!(
+                                "non-zero w for rotation for replay version {}",
+                                replay_version
+                            )
+                        }
+                        let pitch = rb_state.rotation.x;
+                        let yaw = rb_state.rotation.y;
+                        let roll = rb_state.rotation.z;
+                        let quat = rotator_to_quat(pitch, yaw, roll);
+
+                        quat_w = Some(quat.0);
+                        quat_x = Some(quat.1);
+                        quat_y = Some(quat.2);
+                        quat_z = Some(quat.3);
+                    }
 
                     // Dividing by 100 to result in radians/s
                     ang_vel_x = Some(angular_velocity.x / 100.0);
@@ -118,6 +137,24 @@ impl RigidBodyData {
             ang_vel_z,
         }
     }
+}
+
+/// Converts euler angles from game into quaternion (w, x, y, z).
+fn rotator_to_quat(pitch: f32, yaw: f32, roll: f32) -> (f32, f32, f32, f32) {
+    let sin_pitch = f32::sin(pitch / 2.0);
+    let cos_pitch = f32::cos(pitch / 2.0);
+    let sin_yaw = f32::sin(yaw / 2.0);
+    let cos_yaw = f32::cos(yaw / 2.0);
+    let sin_roll = f32::sin(roll / 2.0);
+    let cos_roll = f32::cos(roll / 2.0);
+
+    let w = (cos_roll * cos_pitch * cos_yaw) + (sin_roll * sin_pitch * sin_yaw);
+    let x = (sin_roll * cos_pitch * cos_yaw) - (cos_roll * sin_pitch * sin_yaw);
+    let y = (cos_roll * sin_pitch * cos_yaw) + (sin_roll * cos_pitch * sin_yaw);
+    let z = (cos_roll * cos_pitch * sin_yaw) - (sin_roll * sin_pitch * cos_yaw);
+
+    let norm = f32::sqrt(w * w + x * x + y * y + z * z);
+    (w / norm, x / norm, y / norm, z / norm)
 }
 
 #[derive(Debug, Clone)]
