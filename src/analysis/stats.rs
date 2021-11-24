@@ -142,9 +142,6 @@ impl PlayerStats {
         let time_in_defending_half;
         let time_in_attacking_third;
         let time_in_defending_third;
-        if player.is_orange == None {
-            dbg!(player);
-        }
         match player.is_orange.unwrap() {
             true => {
                 time_in_attacking_half = time_in_blue_half;

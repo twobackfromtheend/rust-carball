@@ -66,10 +66,10 @@ impl GameplayPeriod {
             let first_hit_frame =
                 GameplayPeriod::find_first_hit_frame(hit_team_num, start_frame, end_frame);
 
-            info!(
-                "gameplay period (final, no goal): {} to {} (first hit at {})",
-                start_frame, end_frame, first_hit_frame
-            );
+            // info!(
+            //     "gameplay period (final, no goal): {} to {} (first hit at {})",
+            //     start_frame, end_frame, first_hit_frame
+            // );
 
             gameplay_periods.push(GameplayPeriod {
                 start_frame: start_frame.try_into().unwrap(),
