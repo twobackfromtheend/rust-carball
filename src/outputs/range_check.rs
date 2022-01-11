@@ -1,5 +1,5 @@
 use crate::outputs::DataFramesOutput;
-use log::{error, info};
+use log::{debug, error};
 use polars::series::Series;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -197,7 +197,7 @@ impl Range {
         let max = series
             .max::<f32>()
             .ok_or_else(|| RangeCheckerError::ArithmeticError(format!("{} max", label)))?;
-        info!(
+        debug!(
             "{}. found (min, max): ({}, {}), reference (min, max): ({}, {})",
             label, min, max, self.min, self.max,
         );
