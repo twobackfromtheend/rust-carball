@@ -1,5 +1,5 @@
 use crate::outputs::{DataFramesOutput, MetadataOutput};
-use log::info;
+use log::*;
 use polars::prelude::{AnyValue, Series};
 use serde::Serialize;
 use std::convert::TryInto;
@@ -26,57 +26,61 @@ impl GameplayPeriod {
         let mut start_search_at: usize = 0;
         for goal in metadata.game.goals.iter() {
             let goal_frame: usize = goal.frame.try_into().unwrap();
-            let start_frame = GameplayPeriod::find_start_frame(
+            if let Some(start_frame) = GameplayPeriod::find_start_frame(
                 replicated_game_state_time_remaining,
                 start_search_at,
                 goal_frame,
-            );
+            ) {
+                if let Some(end_frame) =
+                    GameplayPeriod::find_end_frame(hit_team_num, goal_frame, game_frames - 1)
+                {
+                    if let Some(first_hit_frame) =
+                        GameplayPeriod::find_first_hit_frame(hit_team_num, start_frame, goal_frame)
+                    {
+                        info!(
+                            "gameplay period for goal: {} to {} (first hit at {}, goal at {})",
+                            start_frame, end_frame, first_hit_frame, goal_frame
+                        );
 
-            let end_frame =
-                GameplayPeriod::find_end_frame(hit_team_num, goal_frame, game_frames - 1);
+                        gameplay_periods.push(GameplayPeriod {
+                            start_frame: start_frame.try_into().unwrap(),
+                            end_frame: end_frame.try_into().unwrap(),
+                            first_hit_frame: first_hit_frame.try_into().unwrap(),
+                            goal_frame: Some(goal_frame.try_into().unwrap()),
+                        });
 
-            let first_hit_frame =
-                GameplayPeriod::find_first_hit_frame(hit_team_num, start_frame, goal_frame);
-
-            info!(
-                "gameplay period for goal: {} to {} (first hit at {}, goal at {})",
-                start_frame, end_frame, first_hit_frame, goal_frame
-            );
-
-            gameplay_periods.push(GameplayPeriod {
-                start_frame: start_frame.try_into().unwrap(),
-                end_frame: end_frame.try_into().unwrap(),
-                first_hit_frame: first_hit_frame.try_into().unwrap(),
-                goal_frame: Some(goal_frame.try_into().unwrap()),
-            });
-
-            // Set start_search_at for next gameplay period.
-            start_search_at = end_frame + 1;
+                        // Set start_search_at for next gameplay period.
+                        start_search_at = end_frame + 1;
+                    }
+                }
+            }
         }
 
         // Buffer of a couple of frames because some replays have shenanigans happening after (ball teleporting and HitTeamNum not set then set to other team).
         if start_search_at < game_frames - 20 {
             // Last gameplay period without a goal.
-            let start_frame = GameplayPeriod::find_start_frame(
+            if let Some(start_frame) = GameplayPeriod::find_start_frame(
                 replicated_game_state_time_remaining,
                 start_search_at,
                 game_frames - 1,
-            );
-            let end_frame = game_frames - 1;
-            let first_hit_frame =
-                GameplayPeriod::find_first_hit_frame(hit_team_num, start_frame, end_frame);
+            ) {
+                let end_frame = game_frames - 1;
+                if let Some(first_hit_frame) =
+                    GameplayPeriod::find_first_hit_frame(hit_team_num, start_frame, end_frame)
+                {
+                    info!(
+                        "gameplay period (final, no goal): {} to {} (first hit at {})",
+                        start_frame, end_frame, first_hit_frame
+                    );
 
-            // info!(
-            //     "gameplay period (final, no goal): {} to {} (first hit at {})",
-            //     start_frame, end_frame, first_hit_frame
-            // );
-
-            gameplay_periods.push(GameplayPeriod {
-                start_frame: start_frame.try_into().unwrap(),
-                end_frame: end_frame.try_into().unwrap(),
-                first_hit_frame: first_hit_frame.try_into().unwrap(),
-                goal_frame: None,
-            });
+                    gameplay_periods.push(GameplayPeriod {
+                        start_frame: start_frame.try_into().unwrap(),
+                        end_frame: end_frame.try_into().unwrap(),
+                        first_hit_frame: first_hit_frame.try_into().unwrap(),
+                        goal_frame: None,
+                    });
+                }
+            }
         }
         gameplay_periods
     }
@@ -86,7 +90,7 @@ impl GameplayPeriod {
         replicated_game_state_time_remaining: &Series,
         start_search_at: usize,
         end_search_at: usize,
-    ) -> usize {
+    ) -> Option<usize> {
         let mut search_start_frame = start_search_at;
         loop {
             if let AnyValue::Int32(0) = replicated_game_state_time_remaining.get(search_start_frame)
@@ -95,11 +99,11 @@ impl GameplayPeriod {
             }
             search_start_frame += 1;
             if search_start_frame >= end_search_at {
-                println!("{}, {}", start_search_at, end_search_at);
-                panic!("Could not find start frame for gameplay period.");
+                warn!("Could not find start frame for gameplay period. Started at frame {}, ended at frame {}", start_search_at, end_search_at);
+                return None;
             }
         }
-        search_start_frame
+        Some(search_start_frame)
     }
 
     /// Find end frame as the frame before hit_team_num = not set.
@@ -108,7 +112,7 @@ impl GameplayPeriod {
         hit_team_num: &Series,
         start_search_at: usize,
         end_search_at: usize,
-    ) -> usize {
+    ) -> Option<usize> {
         let mut search_end_frame: usize = start_search_at;
         loop {
             if let AnyValue::Null = hit_team_num.get(search_end_frame) {
@@ -120,10 +124,11 @@ impl GameplayPeriod {
             if search_end_frame >= end_search_at {
                 break;
             } else if search_end_frame >= start_search_at + 500 {
-                panic!("Could not find end frame for gameplay period.");
+                warn!("Could not find end frame for gameplay period. Started at frame {}, ended at frame {}", start_search_at, end_search_at);
+                return None;
             }
         }
-        search_end_frame
+        Some(search_end_frame)
     }
 
     /// Find first hit frame as frame where hit_team_num is set.
@@ -131,7 +136,7 @@ impl GameplayPeriod {
         hit_team_num: &Series,
         start_search_at: usize,
         end_search_at: usize,
-    ) -> usize {
+    ) -> Option<usize> {
         let mut search_hit_frame: usize = start_search_at;
         loop {
             if let AnyValue::UInt8(_) = hit_team_num.get(search_hit_frame) {
@@ -139,9 +144,10 @@ impl GameplayPeriod {
             }
             search_hit_frame += 1;
             if search_hit_frame >= end_search_at {
-                panic!("Could not find first hit frame for gameplay period.");
+                warn!("Could not find first hit frame for gameplay period. Started at frame {}, ended at frame {}", start_search_at, end_search_at);
+                return None;
             }
         }
-        search_hit_frame
+        Some(search_hit_frame)
     }
 }
