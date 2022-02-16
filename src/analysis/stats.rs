@@ -23,7 +23,7 @@ impl Stats {
     pub fn generate_from(
         metadata: &MetadataOutput,
         data_frames: &DataFramesOutput,
-        gameplay_periods: &Vec<GameplayPeriod>,
+        gameplay_periods: &[GameplayPeriod],
     ) -> Result<Self, StatsGenerationError> {
         let mut gameplay_frames_set = HashSet::new();
         for gameplay_period in gameplay_periods.iter() {
@@ -142,9 +142,6 @@ impl PlayerStats {
         let time_in_defending_half;
         let time_in_attacking_third;
         let time_in_defending_third;
-        if player.is_orange == None {
-            dbg!(player);
-        }
         match player.is_orange.unwrap() {
             true => {
                 time_in_attacking_half = time_in_blue_half;

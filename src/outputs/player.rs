@@ -137,10 +137,10 @@ fn try_get_player_team(
     wrapped_unique_id: &WrappedUniqueId,
     players_teams: &HashMap<WrappedUniqueId, HashMap<bool, usize>>,
 ) -> Option<bool> {
-    if let Some(player_teams) = players_teams.get(&wrapped_unique_id) {
+    if let Some(player_teams) = players_teams.get(wrapped_unique_id) {
         player_teams
             .iter()
-            .max_by(|a, b| a.1.cmp(&b.1))
+            .max_by(|a, b| a.1.cmp(b.1))
             .map(|(k, v)| if v > &3 { Some(*k) } else { None })
             .flatten()
     } else {

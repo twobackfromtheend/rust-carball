@@ -34,7 +34,7 @@ impl<'a> ActorHandler<'a> for CarHandler<'a> {
                 let car_data =
                     TimeSeriesCarData::from(actor, &attributes, self.frame_parser.replay_version); // attributes passed here as borrowed mut above.
                 let mut players_data = self.frame_parser.players_time_series_car_data.borrow_mut();
-                match players_data.get_mut(&player_wrapped_unique_id) {
+                match players_data.get_mut(player_wrapped_unique_id) {
                     Some(player_data) => {
                         player_data.insert(frame_number, car_data);
                     }
@@ -80,9 +80,10 @@ pub struct TimeSeriesCarData {
     pub vel_x: Option<f32>,
     pub vel_y: Option<f32>,
     pub vel_z: Option<f32>,
-    pub rot_pitch: Option<f32>,
-    pub rot_yaw: Option<f32>,
-    pub rot_roll: Option<f32>,
+    pub quat_w: Option<f32>,
+    pub quat_x: Option<f32>,
+    pub quat_y: Option<f32>,
+    pub quat_z: Option<f32>,
     pub ang_vel_x: Option<f32>,
     pub ang_vel_y: Option<f32>,
     pub ang_vel_z: Option<f32>,
@@ -125,9 +126,10 @@ impl TimeSeriesCarData {
             vel_x: rigid_body_data.vel_x,
             vel_y: rigid_body_data.vel_y,
             vel_z: rigid_body_data.vel_z,
-            rot_pitch: rigid_body_data.rot_pitch,
-            rot_yaw: rigid_body_data.rot_yaw,
-            rot_roll: rigid_body_data.rot_roll,
+            quat_w: rigid_body_data.quat_w,
+            quat_x: rigid_body_data.quat_x,
+            quat_y: rigid_body_data.quat_y,
+            quat_z: rigid_body_data.quat_z,
             ang_vel_x: rigid_body_data.ang_vel_x,
             ang_vel_y: rigid_body_data.ang_vel_y,
             ang_vel_z: rigid_body_data.ang_vel_z,

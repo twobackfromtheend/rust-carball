@@ -31,8 +31,8 @@ impl<'a> ActorHandler<'a> for BoostHandler<'a> {
                 let players_wrapped_unique_id =
                     self.frame_parser.players_wrapped_unique_id.borrow();
                 let player_wrapped_unique_id =
-                    players_wrapped_unique_id.get(&player_actor_id).unwrap();
-                match players_data.get_mut(&player_wrapped_unique_id) {
+                    players_wrapped_unique_id.get(player_actor_id).unwrap();
+                match players_data.get_mut(player_wrapped_unique_id) {
                     Some(player_data) => {
                         player_data.insert(frame_number, boost_data);
                     }

@@ -1,8 +1,10 @@
 use crate::frame_parser::Actor;
 use boxcars::attributes::{RemoteId, UniqueId};
-use boxcars::{Attribute, Quaternion};
+use boxcars::Attribute;
+use log::warn;
 use serde::{Serialize, Serializer};
 use std::collections::{hash_map::DefaultHasher, HashMap};
+use std::fmt;
 use std::hash::{Hash, Hasher};
 
 pub struct RigidBodyData {
@@ -13,9 +15,10 @@ pub struct RigidBodyData {
     pub vel_x: Option<f32>,
     pub vel_y: Option<f32>,
     pub vel_z: Option<f32>,
-    pub rot_pitch: Option<f32>,
-    pub rot_yaw: Option<f32>,
-    pub rot_roll: Option<f32>,
+    pub quat_w: Option<f32>,
+    pub quat_x: Option<f32>,
+    pub quat_y: Option<f32>,
+    pub quat_z: Option<f32>,
     pub ang_vel_x: Option<f32>,
     pub ang_vel_y: Option<f32>,
     pub ang_vel_z: Option<f32>,
@@ -52,9 +55,10 @@ impl RigidBodyData {
         // let mut rot_pitch = initial_rotation.pitch.map(|rot| rot as f32);
         // let mut rot_yaw = initial_rotation.yaw.map(|rot| rot as f32);
         // let mut rot_roll = initial_rotation.roll.map(|rot| rot as f32);
-        let mut rot_pitch = None;
-        let mut rot_yaw = None;
-        let mut rot_roll = None;
+        let mut quat_w = None;
+        let mut quat_x = None;
+        let mut quat_y = None;
+        let mut quat_z = None;
         let mut ang_vel_x = None;
         let mut ang_vel_y = None;
         let mut ang_vel_z = None;
@@ -85,11 +89,28 @@ impl RigidBodyData {
                         vel_y = Some(linear_velocity.y * 10.0);
                         vel_z = Some(linear_velocity.z * 10.0);
                     }
+                    if replay_version >= 8 {
+                        quat_w = Some(rb_state.rotation.w);
+                        quat_x = Some(rb_state.rotation.x);
+                        quat_y = Some(rb_state.rotation.y);
+                        quat_z = Some(rb_state.rotation.z);
+                    } else {
+                        if rb_state.rotation.w != 0.0 {
+                            warn!(
+                                "non-zero w for rotation for replay version {}",
+                                replay_version
+                            )
+                        }
+                        let pitch = rb_state.rotation.x;
+                        let yaw = rb_state.rotation.y;
+                        let roll = rb_state.rotation.z;
+                        let quat = rotator_to_quat(pitch, yaw, roll);
 
-                    let eulers = euler_from_quat(rb_state.rotation);
-                    rot_pitch = Some(eulers.0);
-                    rot_yaw = Some(eulers.1);
-                    rot_roll = Some(eulers.2);
+                        quat_w = Some(quat.0);
+                        quat_x = Some(quat.1);
+                        quat_y = Some(quat.2);
+                        quat_z = Some(quat.3);
+                    }
 
                     // Dividing by 100 to result in radians/s
                     ang_vel_x = Some(angular_velocity.x / 100.0);
@@ -107,9 +128,10 @@ impl RigidBodyData {
             vel_x,
             vel_y,
             vel_z,
-            rot_pitch,
-            rot_yaw,
-            rot_roll,
+            quat_w,
+            quat_x,
+            quat_y,
+            quat_z,
             ang_vel_x,
             ang_vel_y,
             ang_vel_z,
@@ -117,32 +139,25 @@ impl RigidBodyData {
     }
 }
 
-pub fn euler_from_quat(quaternion: Quaternion) -> (f32, f32, f32) {
-    // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Quaternion_to_Euler_angles_conversion
-    let w = quaternion.w;
-    let y = quaternion.y;
-    let x = quaternion.x;
-    let z = quaternion.z;
+/// Converts euler angles from game into quaternion (w, x, y, z).
+fn rotator_to_quat(pitch: f32, yaw: f32, roll: f32) -> (f32, f32, f32, f32) {
+    let sin_pitch = f32::sin(pitch / 2.0);
+    let cos_pitch = f32::cos(pitch / 2.0);
+    let sin_yaw = f32::sin(yaw / 2.0);
+    let cos_yaw = f32::cos(yaw / 2.0);
+    let sin_roll = f32::sin(roll / 2.0);
+    let cos_roll = f32::cos(roll / 2.0);
 
-    let sinr = 2.0 * (w * x + y * z);
-    let cosr = 1.0 - 2.0 * (x * x + y * y);
-    let roll = sinr.atan2(cosr);
+    let w = (cos_roll * cos_pitch * cos_yaw) + (sin_roll * sin_pitch * sin_yaw);
+    let x = (sin_roll * cos_pitch * cos_yaw) - (cos_roll * sin_pitch * sin_yaw);
+    let y = (cos_roll * sin_pitch * cos_yaw) + (sin_roll * cos_pitch * sin_yaw);
+    let z = (cos_roll * cos_pitch * sin_yaw) - (sin_roll * sin_pitch * cos_yaw);
 
-    let sinp = 2.0 * (w * y - z * x);
-    let pitch: f32;
-    if sinp.abs() >= 1.0 {
-        pitch = (std::f32::consts::PI / 2.0).copysign(sinp);
-    } else {
-        pitch = sinp.asin();
-    }
-
-    let siny = 2.0 * (w * z + x * y);
-    let cosy = 1.0 - 2.0 * (y * y + z * z);
-    let yaw = siny.atan2(cosy);
-    (pitch, yaw, roll)
+    let norm = f32::sqrt(w * w + x * x + y * y + z * z);
+    (w / norm, x / norm, y / norm, z / norm)
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct WrappedUniqueId(UniqueId);
 
 impl WrappedUniqueId {
@@ -197,13 +212,19 @@ impl Hash for WrappedUniqueId {
     }
 }
 
+impl PartialEq for WrappedUniqueId {
+    fn eq(&self, other: &WrappedUniqueId) -> bool {
+        // TODO: Replace with accurate impl (referencing hash impl).
+        self.0.remote_id == other.0.remote_id
+    }
+}
 impl Eq for WrappedUniqueId {}
 
-impl WrappedUniqueId {
-    pub fn to_string(&self) -> String {
+impl fmt::Display for WrappedUniqueId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut hasher = DefaultHasher::new();
         self.hash(&mut hasher);
-        hasher.finish().to_string()
+        write!(f, "{}", hasher.finish().to_string())
     }
 }
 

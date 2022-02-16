@@ -62,7 +62,7 @@ impl<'a> ActorHandler<'a> for PlayerHandler<'a> {
                 {
                     let player_teams = players_teams
                         .entry(wrapped_unique_id.clone())
-                        .or_insert(HashMap::new());
+                        .or_insert_with(HashMap::new);
                     player_teams
                         .entry(is_orange)
                         .and_modify(|count| *count += 1)
@@ -90,8 +90,8 @@ impl<'a> ActorHandler<'a> for PlayerHandler<'a> {
                     };
                 if match_score > existing_match_score {
                     // Replace existing entry with this, as this has higher match score.
-                    dbg!(&existing_player_actor_data);
-                    dbg!(&players_actor_data);
+                    // dbg!(&existing_player_actor_data);
+                    // dbg!(&players_actor_data);
                     players_actor_data.insert(wrapped_unique_id, attributes.clone());
                 }
             }
