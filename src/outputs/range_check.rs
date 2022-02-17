@@ -249,8 +249,8 @@ mod tests {
             ColorChoice::Auto,
         )])
         .unwrap();
-        // let file_path = PathBuf::from("assets\\replays\\ranked-3s.replay");
-        let file_path = PathBuf::from("assets\\replays\\rlcs-season-5-final.replay");
+        let file_path = PathBuf::from("assets\\replays\\ranked-3s.replay");
+        // let file_path = PathBuf::from("assets\\replays\\rlcs-season-5-final.replay");
         // let file_path = PathBuf::from("assets\\replays\\soccar-lan.replay");
         let carball_parser = CarballParser::parse_file(file_path, false).expect("failed to parse");
         dbg!(&carball_parser.frame_parser.replay_version);

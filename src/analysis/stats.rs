@@ -3,10 +3,7 @@ use crate::analysis::GameplayPeriod;
 use crate::outputs::{DataFramesOutput, MetadataOutput, Player};
 use log::warn;
 use polars::error::PolarsError;
-use polars::prelude::{
-    BooleanChunked, ChunkAgg, ChunkApply, ChunkCast, ChunkCompare, ChunkFilter, DataFrame,
-    UInt32Type,
-};
+use polars::prelude::{BooleanChunked, ChunkAgg, ChunkApply, ChunkCompare, ChunkFilter, DataFrame};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
@@ -105,10 +102,7 @@ impl PlayerStats {
         player_df: &DataFrame,
         game_df: &DataFrame,
     ) -> Result<Self, PolarsError> {
-        let boost_pickup = player_df
-            .column("boost_pickup")?
-            .u8()?
-            .cast::<UInt32Type>()?;
+        let boost_pickup = player_df.column("boost_pickup")?.u8()?;
 
         let boost_amount = player_df.column("boost_amount")?.f32()?;
         let game_delta = game_df.column("delta")?.f32()?;
@@ -123,8 +117,8 @@ impl PlayerStats {
         let pos_y = player_df.column("pos_y")?.f32()?;
         let pos_z = player_df.column("pos_z")?.f32()?;
 
-        let time_in_blue_half = game_delta.filter(&pos_y.lt(0.0))?.sum().unwrap();
-        let time_in_orange_half = game_delta.filter(&pos_y.gt(0.0))?.sum().unwrap();
+        let time_in_blue_half = game_delta.filter(&pos_y.lt(0.0 as f32))?.sum().unwrap();
+        let time_in_orange_half = game_delta.filter(&pos_y.gt(0.0 as f32))?.sum().unwrap();
         let time_in_blue_third = game_delta
             .filter(&pos_y.lt(-PITCH_Y_THIRD_THRESHOLD))?
             .sum()
@@ -158,10 +152,10 @@ impl PlayerStats {
         }
 
         Ok(Self {
-            big_pads_collected: boost_pickup.eq(2).sum().unwrap(),
-            small_pads_collected: boost_pickup.eq(1).sum().unwrap(),
+            big_pads_collected: boost_pickup.equal(2).sum().unwrap(),
+            small_pads_collected: boost_pickup.equal(1).sum().unwrap(),
             boost_used: game_delta
-                .filter(&player_df.column("boost_is_active")?.u8()?.eq(1))?
+                .filter(&player_df.column("boost_is_active")?.u8()?.equal(1))?
                 .sum()
                 .unwrap()
                 * BOOST_PER_SECOND,

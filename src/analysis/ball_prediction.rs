@@ -1,13 +1,13 @@
 use crate::actor_handlers::TimeSeriesBallData;
-use nalgebra::{Point3, Vector3};
-use std::sync::Mutex;
+// use nalgebra::{Point3, Vector3};
+// use std::sync::Mutex;
 use thiserror::Error;
 
 static PHYSICS_TICK_DELTA: f32 = 1.0 / 120.0;
 
 pub fn predict_ball_bounce(
-    ball_data: &TimeSeriesBallData,
-    delta: f32,
+    _ball_data: &TimeSeriesBallData,
+    _delta: f32,
 ) -> Result<bool, BallPredictionError> {
     Ok(false)
     // let mut ball = BALL.lock().map_err(|_| BallPredictionError::LockError)?;

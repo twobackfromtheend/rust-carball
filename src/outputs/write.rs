@@ -1,5 +1,5 @@
 use crate::outputs::{DataFramesOutput, MetadataOutput};
-use clap::arg_enum;
+use clap::ArgEnum;
 use log::info;
 use polars::error::PolarsError;
 use polars::prelude::DataFrame;
@@ -10,12 +10,10 @@ use std::path::Path;
 use std::path::PathBuf;
 use thiserror::Error;
 
-arg_enum! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub enum DataFrameOutputFormat {
-        Csv,
-        Parquet,
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ArgEnum)]
+pub enum DataFrameOutputFormat {
+    Csv,
+    Parquet,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,7 +96,7 @@ pub fn write_df_to_csv<P: AsRef<Path> + Debug>(
 ) -> Result<(), ParseOutputWriterError> {
     let mut csv_file = File::create(&path).expect("Could not create CSV file.");
     CsvWriter::new(&mut csv_file)
-        .has_headers(true)
+        .has_header(true)
         .with_delimiter(b',')
         .finish(df)
         .map_err(ParseOutputWriterError::WriteDataFrameError)?;

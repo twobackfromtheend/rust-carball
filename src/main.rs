@@ -7,43 +7,44 @@ use carball::outputs::{
     DataFrameOutputFormat, DataFramesOutput, MetadataOutput, ParseOutputWriter,
 };
 use carball::CarballParser;
+use clap::Parser;
 use simplelog::*;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
-struct Opt {
-    #[structopt(short, parse(from_os_str))]
+#[derive(Debug, Parser)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    #[clap(short, parse(from_os_str))]
     input: PathBuf,
-    #[structopt(short, parse(from_os_str))]
+    #[clap(short, parse(from_os_str))]
     output_dir: PathBuf,
-    #[structopt(long)]
+    #[clap(long)]
     skip_data_frames: bool,
-    #[structopt(long)]
+    #[clap(long)]
     skip_write_data_frames: bool,
 
-    #[structopt(required_unless_one(&["skip_data_frames", "skip_write_data_frames"]), possible_values = &DataFrameOutputFormat::variants(), case_insensitive = true)]
+    #[clap(arg_enum, required_unless_present_any(&["skip_data_frames", "skip_write_data_frames"]), ignore_case = true)]
     data_frame_output_format: Option<DataFrameOutputFormat>,
 
-    #[structopt(long)]
+    #[clap(long)]
     skip_checks: bool,
 
-    #[structopt(long)]
+    #[clap(long)]
     skip_analysis: bool,
 }
 
 fn main() {
     setup_logging();
 
-    let opt = Opt::from_args();
-    // dbg!(&opt);
-    info!("{:?}", &opt);
+    let args = Args::parse();
+    // dbg!(&args);
+    info!("{:?}", &args);
 
-    let carball_parser = CarballParser::parse_file(opt.input, true).expect("Failed to parse.");
+    let carball_parser = CarballParser::parse_file(args.input, true).expect("Failed to parse.");
 
     let metadata =
         MetadataOutput::generate_from(&carball_parser.replay, &carball_parser.frame_parser);
-    let data_frames = if opt.skip_data_frames {
+    let data_frames = if args.skip_data_frames {
         None
     } else {
         Some(
@@ -52,7 +53,7 @@ fn main() {
         )
     };
 
-    if !opt.skip_data_frames && !opt.skip_checks {
+    if !args.skip_data_frames && !args.skip_checks {
         if let Some(_data_frames) = &data_frames {
             let range_checker = RangeChecker::new();
             range_checker
@@ -62,8 +63,8 @@ fn main() {
     }
 
     let parse_output_writer =
-        ParseOutputWriter::new(opt.output_dir.clone(), opt.data_frame_output_format);
-    if opt.skip_write_data_frames {
+        ParseOutputWriter::new(args.output_dir.clone(), args.data_frame_output_format);
+    if args.skip_write_data_frames {
         parse_output_writer
             .write_outputs(Some(&metadata), None)
             .expect("Failed to write outputs.");
@@ -73,11 +74,11 @@ fn main() {
             .expect("Failed to write outputs.");
     }
 
-    if !opt.skip_data_frames && !opt.skip_analysis {
+    if !args.skip_data_frames && !args.skip_analysis {
         let analyzer = CarballAnalyzer::analyze(&carball_parser, &metadata, &data_frames.unwrap())
             .expect("Failed to analyze.");
         analyzer
-            .write(opt.output_dir)
+            .write(args.output_dir)
             .expect("Failed to write analysis.");
     }
 
