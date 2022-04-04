@@ -2,8 +2,6 @@ name: Publish
 
 on:
   push:
-    tags:
-      - "*"
 
 jobs:
   publish:
@@ -22,10 +20,10 @@ jobs:
             os: windows-latest
             artifact_name: target/release/<name>.exe
             asset_name: <name>-windows
-          - name: macos
-            os: macos-latest
-            artifact_name: target/release/<name>
-            asset_name: <name>-macos
+          # - name: macos
+          #   os: macos-latest
+          #   artifact_name: target/release/<name>
+          #   asset_name: <name>-macos
 
     steps:
       - uses: actions/checkout@v1
