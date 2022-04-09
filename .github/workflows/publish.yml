@@ -1,8 +1,5 @@
 name: Publish
 
-on:
-  push:
-
 jobs:
   publish:
     name: Publish for ${{ matrix.os }}
