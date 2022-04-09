@@ -3,7 +3,8 @@ name: Release Rust binary
 on:
   push:
     tags:
-      - [0-9]+.*
+      - v[0-9]+.*
+
 jobs:
   create-release:
     runs-on: ubuntu-latest
