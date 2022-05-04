@@ -98,7 +98,7 @@ pub fn write_df_to_csv<P: AsRef<Path> + Debug>(
 ) -> Result<(), ParseOutputWriterError> {
     let mut csv_file = File::create(&path).expect("Could not create CSV file.");
     CsvWriter::new(&mut csv_file)
-        .has_headers(true)
+        .has_header(true)
         .with_delimiter(b',')
         .finish(df)
         .map_err(ParseOutputWriterError::WriteDataFrameError)?;
