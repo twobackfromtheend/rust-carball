@@ -3,10 +3,7 @@ use crate::analysis::GameplayPeriod;
 use crate::outputs::{DataFramesOutput, MetadataOutput, Player};
 use log::warn;
 use polars::error::PolarsError;
-use polars::prelude::{
-    BooleanChunked, ChunkAgg, ChunkApply, ChunkCast, ChunkCompare, ChunkFilter, DataFrame,
-    UInt32Type,
-};
+use polars::prelude::{BooleanChunked, ChunkAgg, ChunkApply, ChunkCast, ChunkCompare, ChunkFilter, DataFrame, DataType, Series};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
@@ -105,10 +102,10 @@ impl PlayerStats {
         player_df: &DataFrame,
         game_df: &DataFrame,
     ) -> Result<Self, PolarsError> {
-        let boost_pickup = player_df
+        let boost_pickup: Series = player_df
             .column("boost_pickup")?
             .u8()?
-            .cast::<UInt32Type>()?;
+            .cast(&DataType::UInt32)?;
 
         let boost_amount = player_df.column("boost_amount")?.f32()?;
         let game_delta = game_df.column("delta")?.f32()?;
@@ -123,8 +120,8 @@ impl PlayerStats {
         let pos_y = player_df.column("pos_y")?.f32()?;
         let pos_z = player_df.column("pos_z")?.f32()?;
 
-        let time_in_blue_half = game_delta.filter(&pos_y.lt(0.0))?.sum().unwrap();
-        let time_in_orange_half = game_delta.filter(&pos_y.gt(0.0))?.sum().unwrap();
+        let time_in_blue_half = game_delta.filter(&pos_y.lt(0.0f32))?.sum().unwrap();
+        let time_in_orange_half = game_delta.filter(&pos_y.gt(0.0f32))?.sum().unwrap();
         let time_in_blue_third = game_delta
             .filter(&pos_y.lt(-PITCH_Y_THIRD_THRESHOLD))?
             .sum()
@@ -158,26 +155,26 @@ impl PlayerStats {
         }
 
         Ok(Self {
-            big_pads_collected: boost_pickup.eq(2).sum().unwrap(),
-            small_pads_collected: boost_pickup.eq(1).sum().unwrap(),
+            big_pads_collected: boost_pickup.equal(2i32).sum().unwrap(),
+            small_pads_collected: boost_pickup.equal(1i32).sum().unwrap(),
             boost_used: game_delta
-                .filter(&player_df.column("boost_is_active")?.u8()?.eq(1))?
+                .filter(&player_df.column("boost_is_active")?.u8()?.equal(1i32))?
                 .sum()
                 .unwrap()
                 * BOOST_PER_SECOND,
-            time_full_boost: game_delta.filter(&boost_amount.gt_eq(95.0))?.sum().unwrap(),
-            time_high_boost: game_delta.filter(&boost_amount.gt_eq(75.0))?.sum().unwrap(),
-            time_low_boost: game_delta.filter(&boost_amount.lt_eq(25.0))?.sum().unwrap(),
-            time_no_boost: game_delta.filter(&boost_amount.lt_eq(5.0))?.sum().unwrap(),
+            time_full_boost: game_delta.filter(&boost_amount.gt_eq(95.0f32))?.sum().unwrap(),
+            time_high_boost: game_delta.filter(&boost_amount.gt_eq(75.0f32))?.sum().unwrap(),
+            time_low_boost: game_delta.filter(&boost_amount.lt_eq(25.0f32))?.sum().unwrap(),
+            time_no_boost: game_delta.filter(&boost_amount.lt_eq(5.0f32))?.sum().unwrap(),
             average_boost_level: (game_delta * boost_amount).sum().unwrap() / total_game_delta,
 
             average_speed: (game_delta * &speed).sum().unwrap() / total_game_delta,
-            time_at_supersonic: game_delta.filter(&speed.gt(2200.0))?.sum().unwrap(),
-            time_at_boost_speed: game_delta.filter(&speed.gt(1450.0))?.sum().unwrap(),
-            time_at_slow_speed: game_delta.filter(&speed.lt(700.0))?.sum().unwrap(),
+            time_at_supersonic: game_delta.filter(&speed.gt(2200.0f32))?.sum().unwrap(),
+            time_at_boost_speed: game_delta.filter(&speed.gt(1450.0f32))?.sum().unwrap(),
+            time_at_slow_speed: game_delta.filter(&speed.lt(700.0f32))?.sum().unwrap(),
 
-            time_on_ground: game_delta.filter(&pos_z.lt(20.0))?.sum().unwrap(),
-            time_near_ground: game_delta.filter(&pos_z.lt(150.0))?.sum().unwrap(),
+            time_on_ground: game_delta.filter(&pos_z.lt(20.0f32))?.sum().unwrap(),
+            time_near_ground: game_delta.filter(&pos_z.lt(150.0f32))?.sum().unwrap(),
             time_in_attacking_half,
             time_in_defending_half,
             time_in_attacking_third,
