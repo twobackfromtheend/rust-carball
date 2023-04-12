@@ -16,11 +16,15 @@ indicatif = "0.16.2"
 polars = {version = "0.16.0", features = ["dtype-u8", "parquet"]}
 ndarray = "0.15.3"
 ndarray-stats = "0.5.0"
-chip = "0.0.6"
+chip = { version = "0.0.6", optional = true }
 nalgebra = "0.18.1"
 thiserror = "1.0.30"
 structopt = "0.3.22"
 clap = "2.33.3"
+
+[features]
+ball_prediction = ["dep:chip"]
+default = ["ball_prediction"]
 
 [dependencies.pyo3]
 version = "0.14.1"
@@ -35,4 +39,5 @@ name = "bench_parsing"
 harness = false
 
 [profile.release] 
+lto = true
 debug = true
