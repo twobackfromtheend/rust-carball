@@ -35,3 +35,9 @@ It tends to be faster to compile for release and parse as opposed to compiling f
 
 To read logs when running tests:
 `cargo test -- --nocapture`
+
+#### Building without RLUtilities (required to build on Linux or macOS)
+
+If you want to build without RLUtilities, perhaps because you're running `rust-carball` on Linux or macOS, run `cargo build` with the `--no-default-features`. Unfortunately this will come at the cost of disabling ball prediction analysis.
+
+This is necessary for Linux and macOS because the `ball_prediction` feature (enabled by default) makes use of `[RLUtilities](https://github.com/samuelpmish/RLUtilities)` via the `[chip](https://github.com/whatisaphone/chip)` crate. Unfortunately `chip` doesn't build `RLUtilities` directly, and the version of `RLUtilities` that `chip` depends on will only build on Windows.

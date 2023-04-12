@@ -1,5 +1,7 @@
 use crate::actor_handlers::{TimeSeriesBallData, TimeSeriesCarData, WrappedUniqueId};
+#[cfg(feature = "ball_prediction")]
 use crate::analysis::{predict_ball_bounce, BallPredictionError};
+
 use crate::frame_parser::FrameParser;
 use crate::outputs::MetadataOutput;
 use log::{error, warn};
@@ -29,6 +31,7 @@ pub struct Hit {
 pub struct HitDebugInfo {
     pub hit_team_num_changed: bool,
     pub ang_vel_changed: bool,
+    #[cfg(feature = "ball_prediction")]
     pub predicted_bounce: bool,
     pub speed_increased: bool,
 }
@@ -70,6 +73,7 @@ impl Hit {
                                 // Detect hits
                                 let mut hit_team_num_changed = false;
                                 let mut ang_vel_changed = false;
+                                #[cfg(feature = "ball_prediction")]
                                 let mut predicted_bounce = false;
                                 let mut speed_increased = false;
 
@@ -98,6 +102,7 @@ impl Hit {
                                     .ok_or(HitDetectionError::MissingDelta(frame_number))?
                                     .delta;
                                 {
+                                    #[cfg(feature = "ball_prediction")]
                                     if predict_ball_bounce(previous_frame_ball_data_value, delta)
                                         .map_err(HitDetectionError::BallPredictionError)?
                                     {
@@ -140,6 +145,7 @@ impl Hit {
                                         } else {
                                             // No definite conclusion here
                                             // hit_team_num did not change, speed did not increase, but ang_vel changed
+                                            #[cfg(feature = "ball_prediction")]
                                             if !predicted_bounce {
                                                 // Look at nearest car distance.
                                                 is_hit = IsHitConclusion::PossibleHit;
@@ -203,6 +209,7 @@ impl Hit {
                                                         _debug_info: HitDebugInfo {
                                                             hit_team_num_changed,
                                                             ang_vel_changed,
+                                                            #[cfg(feature = "ball_prediction")]
                                                             predicted_bounce,
                                                             speed_increased,
                                                         },
@@ -223,6 +230,7 @@ impl Hit {
                                                         _debug_info: HitDebugInfo {
                                                             hit_team_num_changed,
                                                             ang_vel_changed,
+                                                            #[cfg(feature = "ball_prediction")]
                                                             predicted_bounce,
                                                             speed_increased,
                                                         },
@@ -301,6 +309,7 @@ fn unwrap_ang_vel(ball_data: &TimeSeriesBallData) -> Option<(f32, f32, f32)> {
 
 #[derive(Error, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HitDetectionError {
+    #[cfg(feature = "ball_prediction")]
     #[error("ball prediction failed: {0}")]
     BallPredictionError(BallPredictionError),
     #[error("missing delta from parsed replay on frame {0}")]
