@@ -114,7 +114,6 @@ impl FrameParser {
 
         let iter: Box<dyn Iterator<Item = (usize, &boxcars::Frame)>> = if show_progress {
             let progress_bar = ProgressBar::new(self.frame_count as u64);
-            progress_bar.set_draw_rate(30);
             Box::new(
                 network_frames
                     .frames

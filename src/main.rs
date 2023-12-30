@@ -14,16 +14,16 @@ use std::path::PathBuf;
 #[derive(Debug, Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    #[clap(short, parse(from_os_str))]
+    #[clap(short)]
     input: PathBuf,
-    #[clap(short, parse(from_os_str))]
+    #[clap(short)]
     output_dir: PathBuf,
     #[clap(long)]
     skip_data_frames: bool,
     #[clap(long)]
     skip_write_data_frames: bool,
 
-    #[clap(arg_enum, required_unless_present_any(&["skip_data_frames", "skip_write_data_frames"]), ignore_case = true)]
+    #[clap(value_enum, required_unless_present_any(&["skip_data_frames", "skip_write_data_frames"]), ignore_case = true)]
     data_frame_output_format: Option<DataFrameOutputFormat>,
 
     #[clap(long)]
@@ -70,7 +70,8 @@ fn main() {
             .expect("Failed to write outputs.");
     } else {
         parse_output_writer
-            .write_outputs(Some(&metadata), data_frames.as_ref())
+            // TODO: Avoid `data_frames.clone()` here. Added because the CsvWriter needs &mut and not & now :/
+            .write_outputs(Some(&metadata), data_frames.clone())
             .expect("Failed to write outputs.");
     }
 

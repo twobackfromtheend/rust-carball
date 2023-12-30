@@ -9,7 +9,7 @@ use boxcars::{Attribute, Replay};
 use log::error;
 use polars::error::PolarsError;
 use polars::prelude::{
-    DataFrame, Float32Chunked, Int32Chunked, IntoSeries, NewChunkedArray, UInt8Chunked,
+    DataFrame, Float32Chunked, Int32Chunked, IntoSeries, NamedFrom, UInt8Chunked,
 };
 use serde::Serialize;
 use std::collections::HashMap;
@@ -213,33 +213,33 @@ fn create_player_df(
     }
 
     DataFrame::new(vec![
-        UInt8Chunked::new_from_opt_slice("is_sleeping", &is_sleeping).into_series(),
-        Float32Chunked::new_from_opt_slice("pos_x", &pos_x).into_series(),
-        Float32Chunked::new_from_opt_slice("pos_y", &pos_y).into_series(),
-        Float32Chunked::new_from_opt_slice("pos_z", &pos_z).into_series(),
-        Float32Chunked::new_from_opt_slice("vel_x", &vel_x).into_series(),
-        Float32Chunked::new_from_opt_slice("vel_y", &vel_y).into_series(),
-        Float32Chunked::new_from_opt_slice("vel_z", &vel_z).into_series(),
-        Float32Chunked::new_from_opt_slice("quat_w", &quat_w).into_series(),
-        Float32Chunked::new_from_opt_slice("quat_x", &quat_x).into_series(),
-        Float32Chunked::new_from_opt_slice("quat_y", &quat_y).into_series(),
-        Float32Chunked::new_from_opt_slice("quat_z", &quat_z).into_series(),
-        Float32Chunked::new_from_opt_slice("ang_vel_x", &ang_vel_x).into_series(),
-        Float32Chunked::new_from_opt_slice("ang_vel_y", &ang_vel_y).into_series(),
-        Float32Chunked::new_from_opt_slice("ang_vel_z", &ang_vel_z).into_series(),
-        UInt8Chunked::new_from_opt_slice("throttle", &throttle).into_series(),
-        UInt8Chunked::new_from_opt_slice("steer", &steer).into_series(),
-        UInt8Chunked::new_from_opt_slice("handbrake", &handbrake).into_series(),
-        Int32Chunked::new_from_opt_slice("match_score", &match_score).into_series(),
-        Int32Chunked::new_from_opt_slice("match_goals", &match_goals).into_series(),
-        Int32Chunked::new_from_opt_slice("match_assists", &match_assists).into_series(),
-        Int32Chunked::new_from_opt_slice("match_saves", &match_saves).into_series(),
-        Int32Chunked::new_from_opt_slice("match_shots", &match_shots).into_series(),
-        Int32Chunked::new_from_opt_slice("team", &team).into_series(),
-        UInt8Chunked::new_from_opt_slice("ping", &ping).into_series(),
-        UInt8Chunked::new_from_opt_slice("boost_is_active", &boost_is_active).into_series(),
-        Float32Chunked::new_from_opt_slice("boost_amount", &boost_amount).into_series(),
-        UInt8Chunked::new_from_opt_slice("boost_pickup", &boost_pickup).into_series(),
+        UInt8Chunked::new("is_sleeping", &is_sleeping).into_series(),
+        Float32Chunked::new("pos_x", &pos_x).into_series(),
+        Float32Chunked::new("pos_y", &pos_y).into_series(),
+        Float32Chunked::new("pos_z", &pos_z).into_series(),
+        Float32Chunked::new("vel_x", &vel_x).into_series(),
+        Float32Chunked::new("vel_y", &vel_y).into_series(),
+        Float32Chunked::new("vel_z", &vel_z).into_series(),
+        Float32Chunked::new("quat_w", &quat_w).into_series(),
+        Float32Chunked::new("quat_x", &quat_x).into_series(),
+        Float32Chunked::new("quat_y", &quat_y).into_series(),
+        Float32Chunked::new("quat_z", &quat_z).into_series(),
+        Float32Chunked::new("ang_vel_x", &ang_vel_x).into_series(),
+        Float32Chunked::new("ang_vel_y", &ang_vel_y).into_series(),
+        Float32Chunked::new("ang_vel_z", &ang_vel_z).into_series(),
+        UInt8Chunked::new("throttle", &throttle).into_series(),
+        UInt8Chunked::new("steer", &steer).into_series(),
+        UInt8Chunked::new("handbrake", &handbrake).into_series(),
+        Int32Chunked::new("match_score", &match_score).into_series(),
+        Int32Chunked::new("match_goals", &match_goals).into_series(),
+        Int32Chunked::new("match_assists", &match_assists).into_series(),
+        Int32Chunked::new("match_saves", &match_saves).into_series(),
+        Int32Chunked::new("match_shots", &match_shots).into_series(),
+        Int32Chunked::new("team", &team).into_series(),
+        UInt8Chunked::new("ping", &ping).into_series(),
+        UInt8Chunked::new("boost_is_active", &boost_is_active).into_series(),
+        Float32Chunked::new("boost_amount", &boost_amount).into_series(),
+        UInt8Chunked::new("boost_pickup", &boost_pickup).into_series(),
     ])
     .map_err(OutputError::CreateDataFrameError)
 }
@@ -283,21 +283,21 @@ fn create_ball_df(
     }
 
     DataFrame::new(vec![
-        UInt8Chunked::new_from_opt_slice("is_sleeping", &is_sleeping).into_series(),
-        Float32Chunked::new_from_opt_slice("pos_x", &pos_x).into_series(),
-        Float32Chunked::new_from_opt_slice("pos_y", &pos_y).into_series(),
-        Float32Chunked::new_from_opt_slice("pos_z", &pos_z).into_series(),
-        Float32Chunked::new_from_opt_slice("vel_x", &vel_x).into_series(),
-        Float32Chunked::new_from_opt_slice("vel_y", &vel_y).into_series(),
-        Float32Chunked::new_from_opt_slice("vel_z", &vel_z).into_series(),
-        Float32Chunked::new_from_opt_slice("quat_w", &quat_w).into_series(),
-        Float32Chunked::new_from_opt_slice("quat_x", &quat_x).into_series(),
-        Float32Chunked::new_from_opt_slice("quat_y", &quat_y).into_series(),
-        Float32Chunked::new_from_opt_slice("quat_z", &quat_z).into_series(),
-        Float32Chunked::new_from_opt_slice("ang_vel_x", &ang_vel_x).into_series(),
-        Float32Chunked::new_from_opt_slice("ang_vel_y", &ang_vel_y).into_series(),
-        Float32Chunked::new_from_opt_slice("ang_vel_z", &ang_vel_z).into_series(),
-        UInt8Chunked::new_from_opt_slice("hit_team_num", &hit_team_num).into_series(),
+        UInt8Chunked::new("is_sleeping", &is_sleeping).into_series(),
+        Float32Chunked::new("pos_x", &pos_x).into_series(),
+        Float32Chunked::new("pos_y", &pos_y).into_series(),
+        Float32Chunked::new("pos_z", &pos_z).into_series(),
+        Float32Chunked::new("vel_x", &vel_x).into_series(),
+        Float32Chunked::new("vel_y", &vel_y).into_series(),
+        Float32Chunked::new("vel_z", &vel_z).into_series(),
+        Float32Chunked::new("quat_w", &quat_w).into_series(),
+        Float32Chunked::new("quat_x", &quat_x).into_series(),
+        Float32Chunked::new("quat_y", &quat_y).into_series(),
+        Float32Chunked::new("quat_z", &quat_z).into_series(),
+        Float32Chunked::new("ang_vel_x", &ang_vel_x).into_series(),
+        Float32Chunked::new("ang_vel_y", &ang_vel_y).into_series(),
+        Float32Chunked::new("ang_vel_z", &ang_vel_z).into_series(),
+        UInt8Chunked::new("hit_team_num", &hit_team_num).into_series(),
     ])
     .map_err(OutputError::CreateDataFrameError)
 }
@@ -328,16 +328,16 @@ fn create_game_df(
     }
 
     DataFrame::new(vec![
-        Float32Chunked::new_from_opt_slice("time", &time).into_series(),
-        Float32Chunked::new_from_opt_slice("delta", &delta).into_series(),
-        Int32Chunked::new_from_opt_slice("seconds_remaining", &seconds_remaining).into_series(),
-        Int32Chunked::new_from_opt_slice(
+        Float32Chunked::new("time", &time).into_series(),
+        Float32Chunked::new("delta", &delta).into_series(),
+        Int32Chunked::new("seconds_remaining", &seconds_remaining).into_series(),
+        Int32Chunked::new(
             "replicated_game_state_time_remaining",
             &replicated_game_state_time_remaining,
         )
         .into_series(),
-        UInt8Chunked::new_from_opt_slice("is_overtime", &is_overtime).into_series(),
-        UInt8Chunked::new_from_opt_slice("ball_has_been_hit", &ball_has_been_hit).into_series(),
+        UInt8Chunked::new("is_overtime", &is_overtime).into_series(),
+        UInt8Chunked::new("ball_has_been_hit", &ball_has_been_hit).into_series(),
     ])
     .map_err(OutputError::CreateDataFrameError)
 }

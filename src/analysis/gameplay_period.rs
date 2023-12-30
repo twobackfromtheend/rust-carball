@@ -93,7 +93,7 @@ impl GameplayPeriod {
     ) -> Option<usize> {
         let mut search_start_frame = start_search_at;
         loop {
-            if let AnyValue::Int32(0) = replicated_game_state_time_remaining.get(search_start_frame)
+            if let Ok(AnyValue::Int32(0)) = replicated_game_state_time_remaining.get(search_start_frame)
             {
                 break;
             }
@@ -115,7 +115,7 @@ impl GameplayPeriod {
     ) -> Option<usize> {
         let mut search_end_frame: usize = start_search_at;
         loop {
-            if let AnyValue::Null = hit_team_num.get(search_end_frame) {
+            if let Ok(AnyValue::Null) = hit_team_num.get(search_end_frame) {
                 // Set to last frame where hit_team_num is set.
                 search_end_frame -= 1;
                 break;
@@ -139,7 +139,7 @@ impl GameplayPeriod {
     ) -> Option<usize> {
         let mut search_hit_frame: usize = start_search_at;
         loop {
-            if let AnyValue::UInt8(_) = hit_team_num.get(search_hit_frame) {
+            if let Ok(AnyValue::UInt8(_)) = hit_team_num.get(search_hit_frame) {
                 break;
             }
             search_hit_frame += 1;
