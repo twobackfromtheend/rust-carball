@@ -31,7 +31,6 @@ harness = false
 [profile.release] 
 debug = true
 
-
 [features]
 default = ["write"]
 write = ["polars/parquet"]
