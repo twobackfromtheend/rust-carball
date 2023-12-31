@@ -321,7 +321,6 @@ dependencies = [
  "clap",
  "criterion",
  "indicatif",
- "lazy_static",
  "log",
  "ndarray",
  "ndarray-stats",
