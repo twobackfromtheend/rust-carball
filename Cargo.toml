@@ -13,10 +13,9 @@ lazy_static = "1.4.0"
 serde = "1.0.193"
 serde_json = "1.0.108"
 indicatif = "0.17.7"
-polars = { version = "0.35.4", features = ["dtype-u8"] }
+polars = { version = "0.35.4", features = ["dtype-u8", "parquet"] }
 ndarray = "0.15.6"
 ndarray-stats = "0.5.1"
-# nalgebra = "0.18.1"
 thiserror = "1.0.52"
 clap = { version = "4.4.12", features = ["derive"] }
 
@@ -27,10 +26,3 @@ criterion = "0.5.1"
 path = "benches/bench.rs"
 name = "bench_parsing"
 harness = false
-
-[profile.release] 
-debug = true
-
-[features]
-default = ["write"]
-write = ["polars/parquet"]
