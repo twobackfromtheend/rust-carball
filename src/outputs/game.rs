@@ -108,7 +108,7 @@ impl Goal {
     }
 
     pub fn from(data: &[(String, HeaderProp)]) -> Self {
-        let goal_properties: HashMap<String, HeaderProp> = data.to_owned().into_iter().collect();
+        let goal_properties: HashMap<String, HeaderProp> = data.iter().cloned().collect();
         Goal {
             frame: match goal_properties.get("frame") {
                 Some(HeaderProp::Int(frame)) => *frame,

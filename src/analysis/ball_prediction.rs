@@ -1,6 +1,4 @@
 use crate::actor_handlers::TimeSeriesBallData;
-// use nalgebra::{Point3, Vector3};
-// use std::sync::Mutex;
 use thiserror::Error;
 
 static PHYSICS_TICK_DELTA: f32 = 1.0 / 120.0;
