@@ -168,11 +168,10 @@ impl Hit {
                                                     wrapped_unique_id.clone(),
                                                     players_time_series_car_data
                                                         .get(wrapped_unique_id)
-                                                        .map(|time_series_car_data| {
+                                                        .and_then(|time_series_car_data| {
                                                             time_series_car_data
                                                                 .get(&(frame_number - 1))
-                                                        })
-                                                        .flatten(),
+                                                        }),
                                                 )
                                             })
                                             .collect();

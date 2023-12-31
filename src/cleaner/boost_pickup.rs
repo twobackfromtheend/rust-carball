@@ -1,7 +1,7 @@
 use crate::actor_handlers::TimeSeriesCarData;
-use crate::cleaner::boost_pad::BOOST_PAD_DISTANCE_CALCULATOR;
+use crate::cleaner::boost_pad::boost_pad_distance_calculator;
+use crate::cleaner::spawn_distance_calculator;
 use crate::cleaner::SMALL_BOOST_PAD_RADIUS;
-use crate::cleaner::SPAWN_DISTANCE_CALCULATOR;
 use log::warn;
 use ndarray_stats::errors::MinMaxError;
 use thiserror::Error;
@@ -49,7 +49,7 @@ impl BoostPickupKind {
                 // Cannot differentiate between big and small boost pickup from increase.
                 if let Some(_car_data) = car_data {
                     return Ok(Some(
-                        BOOST_PAD_DISTANCE_CALCULATOR
+                        boost_pad_distance_calculator()
                             .calculate_boost_pad_collection_kind(
                                 _car_data.pos_x.ok_or(
                                     BoostPickupKindCalculationError::MissingCarPositionData,
@@ -77,15 +77,15 @@ impl BoostPickupKind {
                         let y = _car_data
                             .pos_y
                             .ok_or(BoostPickupKindCalculationError::MissingCarPositionData)?;
-                        let small_boost_pad_minimum_distance = BOOST_PAD_DISTANCE_CALCULATOR
+                        let small_boost_pad_minimum_distance = boost_pad_distance_calculator()
                             .calculate_minimum_small_boost_pad_distance(x, y)
                             .map_err(
                                 BoostPickupKindCalculationError::FailedToCalculateBoostDistanceMin,
                             )?;
                         let is_near_small_boost_pad = small_boost_pad_minimum_distance
                             < SMALL_BOOST_PAD_RADIUS
-                                + BOOST_PAD_DISTANCE_CALCULATOR.distance_buffer;
-                        let is_near_spawn_or_respawn = SPAWN_DISTANCE_CALCULATOR
+                                + boost_pad_distance_calculator().distance_buffer;
+                        let is_near_spawn_or_respawn = spawn_distance_calculator()
                             .check_if_near_spawn(x, y)
                             .map_err(
                                 BoostPickupKindCalculationError::FailedToCalculateSpawnDistanceMin,
@@ -123,7 +123,7 @@ impl BoostPickupKind {
                     let y = _car_data
                         .pos_y
                         .ok_or(BoostPickupKindCalculationError::MissingCarPositionData)?;
-                    if SPAWN_DISTANCE_CALCULATOR
+                    if spawn_distance_calculator()
                         .check_if_near_spawn(x, y)
                         .map_err(
                             BoostPickupKindCalculationError::FailedToCalculateSpawnDistanceMin,

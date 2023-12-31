@@ -21,7 +21,7 @@ impl<'a> ActorHandler<'a> for PlayerHandler<'a> {
         let actor_id = actor.new_actor.actor_id;
         let attributes = actor.attributes.borrow();
 
-        if self.wrapped_unique_id == None {
+        if self.wrapped_unique_id.is_none() {
             let wrapped_unique_id = WrappedUniqueId::from(&attributes);
             self.wrapped_unique_id = Some(wrapped_unique_id.clone());
             let mut players_wrapped_unique_id =
@@ -62,7 +62,7 @@ impl<'a> ActorHandler<'a> for PlayerHandler<'a> {
                 {
                     let player_teams = players_teams
                         .entry(wrapped_unique_id.clone())
-                        .or_insert_with(HashMap::new);
+                        .or_default();
                     player_teams
                         .entry(is_orange)
                         .and_modify(|count| *count += 1)

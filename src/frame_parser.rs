@@ -114,7 +114,6 @@ impl FrameParser {
 
         let iter: Box<dyn Iterator<Item = (usize, &boxcars::Frame)>> = if show_progress {
             let progress_bar = ProgressBar::new(self.frame_count as u64);
-            progress_bar.set_draw_rate(30);
             Box::new(
                 network_frames
                     .frames
@@ -158,7 +157,7 @@ impl FrameParser {
                 {
                     let _actor_handlers = actor_handlers
                         .entry(handler.priority())
-                        .or_insert_with(HashMap::new);
+                        .or_default();
                     _actor_handlers.insert(actor_id, handler);
                 }
             }
@@ -185,7 +184,7 @@ impl FrameParser {
                 if let Some(mut _actor_handlers) = actor_handlers.get_mut(priority) {
                     for (actor_id, handler) in _actor_handlers.iter_mut() {
                         handler.update(
-                            actors.get(actor_id).ok_or_else(|| {
+                            actors.get(actor_id).ok_or({
                                 FrameParserError::ActorUpdateMissingIdError(frame_number, *actor_id)
                             })?,
                             frame_number,

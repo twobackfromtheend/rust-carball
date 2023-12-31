@@ -224,7 +224,7 @@ impl fmt::Display for WrappedUniqueId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut hasher = DefaultHasher::new();
         self.hash(&mut hasher);
-        write!(f, "{}", hasher.finish().to_string())
+        write!(f, "{}", hasher.finish())
     }
 }
 

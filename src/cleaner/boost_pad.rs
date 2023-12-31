@@ -1,5 +1,6 @@
+use std::sync::OnceLock;
+
 use crate::cleaner::BoostPickupKind;
-use lazy_static::lazy_static;
 use log::warn;
 use ndarray::prelude::*;
 use ndarray_stats::errors::MinMaxError;
@@ -47,23 +48,36 @@ pub static SMALL_BOOST_PAD_RADIUS: f32 = 144.0;
 // See https://www.youtube.com/watch?v=xgfa-qZyInw for more details regarding boost pads
 // In particular, waiting on a boost pad triggers a different (larger, square) hitbox.
 
-lazy_static! {
-    static ref FULL_BOOST_PADS: Vec<[f32; 3]> = {
-        BOOST_PADS_COORDS
-            .iter()
-            .filter(|coords| (coords[2] - 73.0).abs() < f32::EPSILON)
-            .cloned()
-            .collect()
-    };
-    static ref SMALL_BOOST_PADS: Vec<[f32; 3]> = {
-        BOOST_PADS_COORDS
-            .iter()
-            .filter(|coords| (coords[2] - 70.0).abs() < f32::EPSILON)
-            .cloned()
-            .collect()
-    };
-    pub static ref BOOST_PAD_DISTANCE_CALCULATOR: BoostPadDistanceCalculator =
-        BoostPadDistanceCalculator::new();
+fn full_boost_pads() -> Vec<[f32; 3]> {
+    static FULL_BOOST_PADS: OnceLock<Vec<[f32; 3]>> = OnceLock::new();
+
+    FULL_BOOST_PADS
+        .get_or_init(|| {
+            BOOST_PADS_COORDS
+                .iter()
+                .filter(|coords| (coords[2] - 73.0).abs() < f32::EPSILON)
+                .cloned()
+                .collect()
+        })
+        .to_vec()
+}
+
+fn small_boost_pads() -> Vec<[f32; 3]> {
+    static SMALL_BOOST_PADS: OnceLock<Vec<[f32; 3]>> = OnceLock::new();
+    SMALL_BOOST_PADS
+        .get_or_init(|| {
+            BOOST_PADS_COORDS
+                .iter()
+                .filter(|coords| (coords[2] - 70.0).abs() < f32::EPSILON)
+                .cloned()
+                .collect()
+        })
+        .to_vec()
+}
+
+pub fn boost_pad_distance_calculator() -> &'static BoostPadDistanceCalculator {
+    static BOOST_PAD_DISTANCE_CALCULATOR: OnceLock<BoostPadDistanceCalculator> = OnceLock::new();
+    BOOST_PAD_DISTANCE_CALCULATOR.get_or_init(BoostPadDistanceCalculator::new)
 }
 
 pub struct BoostPadDistanceCalculator {
@@ -75,8 +89,8 @@ pub struct BoostPadDistanceCalculator {
 impl BoostPadDistanceCalculator {
     pub fn new() -> Self {
         Self {
-            full_boost_pads: arr2(&FULL_BOOST_PADS).slice(s![.., ..2]).to_owned(),
-            small_boost_pads: arr2(&SMALL_BOOST_PADS).slice(s![.., ..2]).to_owned(),
+            full_boost_pads: arr2(&full_boost_pads()).slice(s![.., ..2]).to_owned(),
+            small_boost_pads: arr2(&small_boost_pads()).slice(s![.., ..2]).to_owned(),
             distance_buffer: 50.0,
         }
     }

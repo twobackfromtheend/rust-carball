@@ -141,8 +141,7 @@ fn try_get_player_team(
         player_teams
             .iter()
             .max_by(|a, b| a.1.cmp(b.1))
-            .map(|(k, v)| if v > &3 { Some(*k) } else { None })
-            .flatten()
+            .and_then(|(k, v)| if v > &3 { Some(*k) } else { None })
     } else {
         None
     }

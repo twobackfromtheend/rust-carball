@@ -1,4 +1,5 @@
-use lazy_static::lazy_static;
+use std::sync::OnceLock;
+
 use ndarray::prelude::*;
 use ndarray_stats::errors::MinMaxError;
 use ndarray_stats::QuantileExt;
@@ -33,9 +34,9 @@ static RESPAWN_LOCATION: [[f32; 2]; 8] = [
     [2688.0, 4608.0],
 ];
 
-lazy_static! {
-    pub static ref SPAWN_DISTANCE_CALCULATOR: SpawnDistanceCalculator =
-        SpawnDistanceCalculator::new();
+pub fn spawn_distance_calculator() -> &'static SpawnDistanceCalculator {
+    static SPAWN_DISTANCE_CALCULATOR: OnceLock<SpawnDistanceCalculator> = OnceLock::new();
+    SPAWN_DISTANCE_CALCULATOR.get_or_init(SpawnDistanceCalculator::new)
 }
 
 pub struct SpawnDistanceCalculator {

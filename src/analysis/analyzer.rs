@@ -36,7 +36,7 @@ impl CarballAnalyzer {
 
     pub fn write(&self, output_dir: PathBuf) -> Result<(), CarballAnalyzerWriteError> {
         let mut output_path = output_dir;
-        output_path.push("analyzer.json");
+        output_path.push("analysis.json"); // TODO: Make this configurable, along with the other output files like metadata.json.
 
         serde_json::to_writer_pretty(
             &File::create(output_path).map_err(CarballAnalyzerWriteError::CreateFileError)?,

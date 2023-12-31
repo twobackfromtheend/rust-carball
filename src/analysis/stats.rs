@@ -3,10 +3,7 @@ use crate::analysis::GameplayPeriod;
 use crate::outputs::{DataFramesOutput, MetadataOutput, Player};
 use log::warn;
 use polars::error::PolarsError;
-use polars::prelude::{
-    BooleanChunked, ChunkAgg, ChunkApply, ChunkCast, ChunkCompare, ChunkFilter, DataFrame,
-    UInt32Type,
-};
+use polars::prelude::{BooleanChunked, ChunkAgg, ChunkApply, ChunkCompare, ChunkFilter, DataFrame};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
@@ -46,14 +43,18 @@ impl Stats {
         let mut players_stats: HashMap<WrappedUniqueId, PlayerStats> = HashMap::new();
         for player in metadata.players.iter() {
             if let Some(player_df) = data_frames.players.get(&player.unique_id) {
-                let player_stats = PlayerStats::from(
+                match PlayerStats::from(
                     player,
                     &player_df.filter(&gameplay_frames_boolean_mask).unwrap(),
                     &game_df,
-                )
-                .map_err(StatsGenerationError::PlayerStatsError)?;
-                players_stats.insert(player.unique_id.clone(), player_stats);
-                // info!("{} {:?}", player.name, player_stats);
+                ) {
+                    Ok(player_stats) => {
+                        players_stats.insert(player.unique_id.clone(), player_stats);
+                    }
+                    Err(e) => {
+                        warn!("Failed to generate stats for {} {:?}", player.name, e);
+                    }
+                }
             } else {
                 warn!(
                     "Not generating player stats for {} as missing data frame (unique id: {})",
@@ -104,11 +105,8 @@ impl PlayerStats {
         player: &Player,
         player_df: &DataFrame,
         game_df: &DataFrame,
-    ) -> Result<Self, PolarsError> {
-        let boost_pickup = player_df
-            .column("boost_pickup")?
-            .u8()?
-            .cast::<UInt32Type>()?;
+    ) -> Result<Self, PlayerStatsError> {
+        let boost_pickup = player_df.column("boost_pickup")?.u8()?;
 
         let boost_amount = player_df.column("boost_amount")?.f32()?;
         let game_delta = game_df.column("delta")?.f32()?;
@@ -117,32 +115,34 @@ impl PlayerStats {
         let vel_x = player_df.column("vel_x")?.f32()?;
         let vel_y = player_df.column("vel_y")?.f32()?;
         let vel_z = player_df.column("vel_z")?.f32()?;
-        let speed = (vel_x.apply(|v| v * v) + vel_y.apply(|v| v * v) + vel_z.apply(|v| v * v))
-            .apply(f32::sqrt);
+        let speed = (vel_x.apply_values(|v| v * v) + vel_y.apply_values(|v| v * v) + vel_z.apply_values(|v| v * v))
+            .apply_values(f32::sqrt);
 
         let pos_y = player_df.column("pos_y")?.f32()?;
         let pos_z = player_df.column("pos_z")?.f32()?;
 
-        let time_in_blue_half = game_delta.filter(&pos_y.lt(0.0))?.sum().unwrap();
-        let time_in_orange_half = game_delta.filter(&pos_y.gt(0.0))?.sum().unwrap();
+        let time_in_blue_half = game_delta.filter(&pos_y.lt(0.0_f32))?.sum().unwrap_or(0.0);
+        let time_in_orange_half = game_delta.filter(&pos_y.gt(0.0_f32))?.sum().unwrap_or(0.0);
         let time_in_blue_third = game_delta
             .filter(&pos_y.lt(-PITCH_Y_THIRD_THRESHOLD))?
             .sum()
-            .unwrap();
+            .unwrap_or(0.0);
         let time_in_neutral_third = game_delta
-            .filter(&pos_y.apply(f32::abs).lt(PITCH_Y_THIRD_THRESHOLD))?
+            .filter(&pos_y.apply_values(f32::abs).lt(PITCH_Y_THIRD_THRESHOLD))?
             .sum()
-            .unwrap();
+            .unwrap_or(0.0);
         let time_in_orange_third = game_delta
             .filter(&pos_y.gt(PITCH_Y_THIRD_THRESHOLD))?
             .sum()
-            .unwrap();
+            .unwrap_or(0.0);
 
         let time_in_attacking_half;
         let time_in_defending_half;
         let time_in_attacking_third;
         let time_in_defending_third;
-        match player.is_orange.unwrap() {
+
+        let is_orange = player.is_orange.ok_or(PlayerStatsError::NoTeamColor)?;
+        match is_orange {
             true => {
                 time_in_attacking_half = time_in_blue_half;
                 time_in_defending_half = time_in_orange_half;
@@ -158,26 +158,51 @@ impl PlayerStats {
         }
 
         Ok(Self {
-            big_pads_collected: boost_pickup.eq(2).sum().unwrap(),
-            small_pads_collected: boost_pickup.eq(1).sum().unwrap(),
+            big_pads_collected: boost_pickup.equal(2).sum().unwrap_or(0_u32),
+            small_pads_collected: boost_pickup.equal(1).sum().unwrap_or(0),
             boost_used: game_delta
-                .filter(&player_df.column("boost_is_active")?.u8()?.eq(1))?
+                .filter(&player_df.column("boost_is_active")?.u8()?.equal(1_i32))?
                 .sum()
-                .unwrap()
+                .unwrap_or(0.0)
                 * BOOST_PER_SECOND,
-            time_full_boost: game_delta.filter(&boost_amount.gt_eq(95.0))?.sum().unwrap(),
-            time_high_boost: game_delta.filter(&boost_amount.gt_eq(75.0))?.sum().unwrap(),
-            time_low_boost: game_delta.filter(&boost_amount.lt_eq(25.0))?.sum().unwrap(),
-            time_no_boost: game_delta.filter(&boost_amount.lt_eq(5.0))?.sum().unwrap(),
-            average_boost_level: (game_delta * boost_amount).sum().unwrap() / total_game_delta,
+            time_full_boost: game_delta
+                .filter(&boost_amount.gt_eq(95.0_f32))?
+                .sum()
+                .unwrap_or(0.0),
+            time_high_boost: game_delta
+                .filter(&boost_amount.gt_eq(75.0_f32))?
+                .sum()
+                .unwrap_or(0.0),
+            time_low_boost: game_delta
+                .filter(&boost_amount.lt_eq(25.0_f32))?
+                .sum()
+                .unwrap_or(0.0),
+            time_no_boost: game_delta
+                .filter(&boost_amount.lt_eq(5.0_f32))?
+                .sum()
+                .unwrap_or(0.0),
+            average_boost_level: (game_delta * boost_amount).sum().unwrap_or(0.0)
+                / total_game_delta,
 
-            average_speed: (game_delta * &speed).sum().unwrap() / total_game_delta,
-            time_at_supersonic: game_delta.filter(&speed.gt(2200.0))?.sum().unwrap(),
-            time_at_boost_speed: game_delta.filter(&speed.gt(1450.0))?.sum().unwrap(),
-            time_at_slow_speed: game_delta.filter(&speed.lt(700.0))?.sum().unwrap(),
+            average_speed: (game_delta * &speed).sum().unwrap_or(0 as f32) / total_game_delta,
+            time_at_supersonic: game_delta
+                .filter(&speed.gt(2200.0_f32))?
+                .sum()
+                .unwrap_or(0.0),
+            time_at_boost_speed: game_delta
+                .filter(&speed.gt(1450.0_f32))?
+                .sum()
+                .unwrap_or(0.0),
+            time_at_slow_speed: game_delta
+                .filter(&speed.lt(700.0_f32))?
+                .sum()
+                .unwrap_or(0.0),
 
-            time_on_ground: game_delta.filter(&pos_z.lt(20.0))?.sum().unwrap(),
-            time_near_ground: game_delta.filter(&pos_z.lt(150.0))?.sum().unwrap(),
+            time_on_ground: game_delta.filter(&pos_z.lt(20.0_f32))?.sum().unwrap_or(0.0),
+            time_near_ground: game_delta
+                .filter(&pos_z.lt(150.0_f32))?
+                .sum()
+                .unwrap_or(0.0),
             time_in_attacking_half,
             time_in_defending_half,
             time_in_attacking_third,
@@ -189,6 +214,21 @@ impl PlayerStats {
 
 #[derive(Error, Debug)]
 pub enum StatsGenerationError {
+    // TODO: Reintroduce stats generation errors.
+// #[error("Player stats generation Polars error: {0}")]
+// PlayerStatsError(PolarsError),
+}
+
+#[derive(Error, Debug)]
+pub enum PlayerStatsError {
     #[error("Player stats generation Polars error: {0}")]
-    PlayerStatsError(PolarsError),
+    PolarsError(PolarsError),
+    #[error("Player's is_orange attribute is null")]
+    NoTeamColor,
+}
+
+impl From<PolarsError> for PlayerStatsError {
+    fn from(error: PolarsError) -> Self {
+        Self::PolarsError(error)
+    }
 }
